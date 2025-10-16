@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Basic Counter</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card: #1f232b;
+      --text: #e6edf3;
+      --muted: #9aa4b2;
+      --accent: #3ea6ff;
+      --track: #2e3440;
+      --ring: #3ea6ff;
+      --danger: #ff6b6b;
+      --ok: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+      display: grid; place-items: center;
+    }
+    .app { width: min(520px, 92vw); padding: 20px; background: var(--card); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .title { font-weight: 700; letter-spacing: .2px; margin: 0 0 16px; font-size: clamp(18px, 2.6vw, 22px); color: var(--text); }
+
+    .ring-wrap { position: relative; width: 220px; height: 220px; margin: 8px auto 18px; }
+    .count { position: absolute; inset: 0; display: grid; place-items: center; font-size: 48px; font-weight: 800; }
+    .muted { color: var(--muted); font-size: 12px; }
+
+    .controls { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 12px 0 8px; }
+    button {
+      appearance: none; border: 0; padding: 12px 14px; border-radius: 12px; cursor: pointer;
+      font-weight: 600; background: #2b313c; color: var(--text); transition: transform .04s ease, background .2s ease;
+    }
+    button:active { transform: translateY(1px); }
+    .start { background: #213445; }
+    .stop { background: #402b2b; }
+    .reset { background: #2b3b2c; }
+
+    .rows { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+    .field { background: #2b313c; padding: 10px 12px; border-radius: 12px; }
+    .field label { display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .field input, .field select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #39414f; background: #222730; color: var(--text); font-size: 16px; }
+
+    .note { text-align: center; margin-top: 10px; color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main class="app" role="application" aria-label="Basic Counter">
+    <h1 class="title">Basic Counter</h1>
+
+    <div class="ring-wrap" aria-live="polite" aria-atomic="true">
+      <!-- SVG progress ring -->
+      <svg width="220" height="220" viewBox="0 0 220 220" aria-hidden="true">
+        <defs>
+          <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stop-color="var(--ring)"/>
+            <stop offset="100%" stop-color="#7bd0ff"/>
+          </linearGradient>
+        </defs>
+        <circle cx="110" cy="110" r="96" stroke="var(--track)" stroke-width="12" fill="none"></circle>
+        <circle id="prog" cx="110" cy="110" r="96" stroke="url(#g)" stroke-width="12" fill="none"
+                stroke-linecap="round" transform="rotate(-90 110 110)" stroke-dasharray="603.185" stroke-dashoffset="603.185"></circle>
+      </svg>
+      <div class="count"><span id="count">0</span></div>
+    </div>
+
+    <div class="controls">
+      <button class="start" id="startBtn" aria-label="Start">Start</button>
+      <button class="stop" id="stopBtn" aria-label="Stop">Stop</button>
+      <button class="reset" id="resetBtn" aria-label="Reset">Reset</button>
+    </div>
+
+    <div class="rows">
+      <div class="field">
+        <label for="interval">Interval (seconds)</label>
+        <select id="interval" aria-label="Interval">
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+          <option>6</option><option>7</option><option>8</option><option>9</option><option selected>10</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="limit">Limit (0 = no limit)</label>
+        <input id="limit" type="number" min="0" step="1" inputmode="numeric" value="0" />
+      </div>
+    </div>
+
+    <p class="note">Tip: add this file to OneDrive and open it on your phone. Works offline.</p>
+  </main>
+
+  <script>
+    // --- State ---
+    let running = false;
+    let count = 0;
+    let intervalSec = 1;
+    let limit = 0; // 0 = no limit
+
+    // restore previous settings (optional convenience)
+    try {
+      const s = JSON.parse(localStorage.getItem('counter-settings') || '{}');
+      if (s.intervalSec) intervalSec = Math.min(10, Math.max(1, s.intervalSec));
+      if (typeof s.limit === 'number') limit = Math.max(0, s.limit);
+    } catch {}
+
+    const $count = document.getElementById('count');
+    const $prog = document.getElementById('prog');
+    const $interval = document.getElementById('interval');
+    const $limit = document.getElementById('limit');
+    const $start = document.getElementById('startBtn');
+    const $stop = document.getElementById('stopBtn');
+    const $reset = document.getElementById('resetBtn');
+
+    // circumference for r=96
+    const C = 2 * Math.PI * 96;
+    $prog.setAttribute('stroke-dasharray', String(C));
+
+    // initialize UI from state
+    function syncUI(){
+      $count.textContent = String(count);
+      $interval.value = String(intervalSec);
+      $limit.value = String(limit);
+      drawProgress(0);
+    }
+
+    function persist(){
+      localStorage.setItem('counter-settings', JSON.stringify({intervalSec, limit}));
+    }
+
+    function drawProgress(frac){
+      frac = Math.max(0, Math.min(1, frac));
+      const offset = C * (1 - frac);
+      $prog.setAttribute('stroke-dashoffset', String(offset));
+    }
+
+    // --- Loop ---
+    let rafId = null;
+    let cycleStart = 0;
+
+    function loop(ts){
+      if (!running) { rafId = null; return; }
+      if (!cycleStart) cycleStart = ts;
+      const elapsed = (ts - cycleStart) / 1000; // to seconds
+      const frac = elapsed / intervalSec;
+
+      if (frac >= 1){
+        drawProgress(1);
+        cycleStart = ts;
+        count += 1;
+        $count.textContent = String(count);
+        if (limit > 0 && count >= limit){
+          stop();
+          alert(`Reached limit: ${limit}`);
+          drawProgress(0);
+          return;
+        }
+        drawProgress(0);
+      } else {
+        drawProgress(frac);
+      }
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function start(){
+      if (running) return;
+      if (limit > 0 && count >= limit){
+        alert('Already at the limit. Reset or increase the limit.');
+        return;
+      }
+      running = true;
+      cycleStart = 0; // restart cycle for clean progress
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function stop(){
+      running = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+
+    function reset(){
+      stop();
+      count = 0;
+      drawProgress(0);
+      $count.textContent = '0';
+    }
+
+    // --- Events ---
+    $start.addEventListener('click', start);
+    $stop.addEventListener('click', stop);
+    $reset.addEventListener('click', reset);
+
+    $interval.addEventListener('change', () => {
+      intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
+      persist();
+      // restart the current cycle timing for intuitive UX
+      if (running) cycleStart = performance.now();
+    });
+
+    $limit.addEventListener('change', () => {
+      const v = parseInt($limit.value || '0', 10);
+      limit = Math.max(0, isNaN(v) ? 0 : v);
+      persist();
+      if (limit > 0 && count >= limit) stop();
+    });
+
+    // mobile-friendly: allow spacebar (on desktop) to toggle start/stop
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') { e.preventDefault(); running ? stop() : start(); }
+      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); reset(); }
+    });
+
+    // set initial values and progress
+    // prefer 1s default unless restored
+    if (!$interval.value) $interval.value = '1';
+    if (intervalSec) $interval.value = String(intervalSec);
+    syncUI();
+  </script>
+</body>
+</html>
