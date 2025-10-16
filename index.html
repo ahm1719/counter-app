@@ -53,7 +53,6 @@
     <h1 class="title">Basic Counter</h1>
 
     <div class="ring-wrap" aria-live="polite" aria-atomic="true">
-      <!-- SVG progress ring -->
       <svg width="220" height="220" viewBox="0 0 220 220" aria-hidden="true">
         <defs>
           <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
@@ -69,22 +68,27 @@
     </div>
 
     <div class="controls">
-      <button class="start" id="startBtn" aria-label="Start">Start</button>
-      <button class="stop" id="stopBtn" aria-label="Stop">Stop</button>
-      <button class="reset" id="resetBtn" aria-label="Reset">Reset</button>
+      <button class="start" id="startBtn">Start</button>
+      <button class="stop" id="stopBtn">Stop</button>
+      <button class="reset" id="resetBtn">Reset</button>
     </div>
 
     <div class="rows">
       <div class="field">
         <label for="interval">Interval (seconds)</label>
-        <select id="interval" aria-label="Interval">
+        <select id="interval">
           <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
           <option>6</option><option>7</option><option>8</option><option>9</option><option selected>10</option>
         </select>
       </div>
       <div class="field">
         <label for="limit">Limit (0 = no limit)</label>
-        <input id="limit" type="number" min="0" step="1" inputmode="numeric" value="0" />
+        <select id="limit">
+          <option value="0">0 (No limit)</option>
+          <option>10</option><option>20</option><option>30</option><option>40</option><option>50</option>
+          <option>60</option><option>70</option><option>80</option><option>90</option><option>100</option>
+          <option>110</option><option>120</option>
+        </select>
       </div>
     </div>
 
@@ -92,13 +96,11 @@
   </main>
 
   <script>
-    // --- State ---
     let running = false;
     let count = 0;
     let intervalSec = 1;
-    let limit = 0; // 0 = no limit
+    let limit = 0;
 
-    // restore previous settings (optional convenience)
     try {
       const s = JSON.parse(localStorage.getItem('counter-settings') || '{}');
       if (s.intervalSec) intervalSec = Math.min(10, Math.max(1, s.intervalSec));
@@ -113,11 +115,9 @@
     const $stop = document.getElementById('stopBtn');
     const $reset = document.getElementById('resetBtn');
 
-    // circumference for r=96
     const C = 2 * Math.PI * 96;
     $prog.setAttribute('stroke-dasharray', String(C));
 
-    // initialize UI from state
     function syncUI(){
       $count.textContent = String(count);
       $interval.value = String(intervalSec);
@@ -135,20 +135,19 @@
       $prog.setAttribute('stroke-dashoffset', String(offset));
     }
 
-    // --- Loop ---
     let rafId = null;
     let cycleStart = 0;
 
     function loop(ts){
       if (!running) { rafId = null; return; }
       if (!cycleStart) cycleStart = ts;
-      const elapsed = (ts - cycleStart) / 1000; // to seconds
+      const elapsed = (ts - cycleStart) / 1000;
       const frac = elapsed / intervalSec;
 
       if (frac >= 1){
         drawProgress(1);
         cycleStart = ts;
-        count += 1;
+        count++;
         $count.textContent = String(count);
         if (limit > 0 && count >= limit){
           stop();
@@ -170,7 +169,7 @@
         return;
       }
       running = true;
-      cycleStart = 0; // restart cycle for clean progress
+      cycleStart = 0;
       rafId = requestAnimationFrame(loop);
     }
 
@@ -187,7 +186,6 @@
       $count.textContent = '0';
     }
 
-    // --- Events ---
     $start.addEventListener('click', start);
     $stop.addEventListener('click', stop);
     $reset.addEventListener('click', reset);
@@ -195,7 +193,6 @@
     $interval.addEventListener('change', () => {
       intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
       persist();
-      // restart the current cycle timing for intuitive UX
       if (running) cycleStart = performance.now();
     });
 
@@ -206,14 +203,11 @@
       if (limit > 0 && count >= limit) stop();
     });
 
-    // mobile-friendly: allow spacebar (on desktop) to toggle start/stop
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space') { e.preventDefault(); running ? stop() : start(); }
       if (e.key === 'r' || e.key === 'R') { e.preventDefault(); reset(); }
     });
 
-    // set initial values and progress
-    // prefer 1s default unless restored
     if (!$interval.value) $interval.value = '1';
     if (intervalSec) $interval.value = String(intervalSec);
     syncUI();
