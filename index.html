@@ -135,7 +135,7 @@
     const $start = document.getElementById('startBtn');
     const $stop = document.getElementById('stopBtn');
     const $reset = document.getElementById('resetBtn');
-    const $keepAwake = document.getElementById('keepAwake');
+    const $keepAwake = document.getElementById('keepAwake'); // may be null on older builds
 
     const C = 2 * Math.PI * 96;
     $prog.setAttribute('stroke-dasharray', String(C));
@@ -196,11 +196,21 @@
     }
 
     function start(){
+      // Guard against prior JS errors blocking start
       if (running) return;
       if (limit > 0 && count >= limit){
         alert('Already at the limit. Reset or increase the limit.');
         return;
       }
+      // Ensure intervalSec/limit reflect current UI
+      intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
+      limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
+      running = true;
+      lastTickMs = Date.now();
+      if ($keepAwake && $keepAwake.checked) requestWakeLockIfNeeded();
+      persist();
+      if (!rafId) rafId = requestAnimationFrame(loop);
+    }
       running = true;
       lastTickMs = Date.now();
       requestWakeLockIfNeeded();
@@ -249,8 +259,17 @@
     // Handle page visibility / background → catch up using Date.now deltas
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible'){
-        // Re-request wake lock if enabled
-        if ($keepAwake.checked) requestWakeLockIfNeeded();
+        if ($keepAwake && $keepAwake.checked) requestWakeLockIfNeeded();
+        // Do NOT zero lastTickMs here; we want delta to include time away
+        if (running && !rafId) {
+          rafId = requestAnimationFrame(loop);
+        }
+      } else {
+        // Mark departure time so we can compute full delta on return
+        lastTickMs = Date.now();
+        persist();
+      }
+    });
         // IMPORTANT: do NOT reset lastTickMs here — we want delta to include time away
         // If rAF was paused, restart it
         if (running && !rafId) {
@@ -283,8 +302,13 @@
     function releaseWakeLock(){
       try{ if (wakeLock) { wakeLock.release(); wakeLock = null; } }catch(e){}
     }
-    $keepAwake.addEventListener('change', () => {
-      if ($keepAwake.checked && running) requestWakeLockIfNeeded();
+    if ($keepAwake) {
+      $keepAwake.addEventListener('change', () => {
+        if ($keepAwake.checked && running) requestWakeLockIfNeeded();
+        else releaseWakeLock();
+        persist();
+      });
+    }
       else releaseWakeLock();
       persist();
     });
@@ -297,8 +321,9 @@
 
     // Initial UI
     (function init(){
-      $interval.value = String(intervalSec);
-      $limit.value = String(limit);
+      // Initialize from current UI selections to avoid stale defaults
+      intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
+      limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
       $count.textContent = String(count);
       drawProgress((remainderMs || 0) / (intervalSec * 1000));
     })();
