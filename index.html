@@ -28,7 +28,6 @@
 
     .ring-wrap { position: relative; width: 220px; height: 220px; margin: 8px auto 18px; }
     .count { position: absolute; inset: 0; display: grid; place-items: center; font-size: 48px; font-weight: 800; }
-    .muted { color: var(--muted); font-size: 12px; }
 
     .controls { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 12px 0 8px; }
     button {
@@ -46,6 +45,9 @@
     .field input, .field select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #39414f; background: #222730; color: var(--text); font-size: 16px; }
 
     .note { text-align: center; margin-top: 10px; color: var(--muted); font-size: 12px; }
+
+    .row-wide { display:flex; align-items:center; justify-content: space-between; gap:10px; margin-top:10px; color: var(--muted); }
+    .row-wide input[type="checkbox"] { transform: scale(1.2); }
   </style>
 </head>
 <body>
@@ -92,21 +94,40 @@
       </div>
     </div>
 
-    <p class="note">Tip: add this file to OneDrive and open it on your phone. Works offline.</p>
+    <div class="row-wide">
+      <label for="keepAwake">Keep screen awake (Android/Chrome only)</label>
+      <input id="keepAwake" type="checkbox" />
+    </div>
+    <p class="note">Background counting is restricted by iOS/Android. This app now **catches up** missed ticks when you return. Enable "Keep screen awake" on supported browsers to avoid pausing.</p>
   </main>
 
   <script>
+    // ------- State -------
     let running = false;
     let count = 0;
     let intervalSec = 1;
     let limit = 0;
 
+    // Persisted timing to "catch up" after lock/background
+    // We store the timestamp of the last tick (ms) and leftover remainder within the current interval
+    let lastTickMs = null;     // Date.now() when we last processed a tick
+    let remainderMs = 0;       // elapsed within current interval not yet forming a tick
+
+    // Wake Lock support (Android Chrome). iOS Safari does not support this.
+    let wakeLock = null;
+
+    // Restore user settings
     try {
       const s = JSON.parse(localStorage.getItem('counter-settings') || '{}');
       if (s.intervalSec) intervalSec = Math.min(10, Math.max(1, s.intervalSec));
       if (typeof s.limit === 'number') limit = Math.max(0, s.limit);
+      if (typeof s.count === 'number') count = Math.max(0, s.count);
+      if (typeof s.remainderMs === 'number') remainderMs = Math.max(0, s.remainderMs);
+      if (typeof s.lastTickMs === 'number') lastTickMs = s.lastTickMs;
+      if (s.running) running = false; // always start paused for safety
     } catch {}
 
+    // ------- Elements -------
     const $count = document.getElementById('count');
     const $prog = document.getElementById('prog');
     const $interval = document.getElementById('interval');
@@ -114,20 +135,10 @@
     const $start = document.getElementById('startBtn');
     const $stop = document.getElementById('stopBtn');
     const $reset = document.getElementById('resetBtn');
+    const $keepAwake = document.getElementById('keepAwake');
 
     const C = 2 * Math.PI * 96;
     $prog.setAttribute('stroke-dasharray', String(C));
-
-    function syncUI(){
-      $count.textContent = String(count);
-      $interval.value = String(intervalSec);
-      $limit.value = String(limit);
-      drawProgress(0);
-    }
-
-    function persist(){
-      localStorage.setItem('counter-settings', JSON.stringify({intervalSec, limit}));
-    }
 
     function drawProgress(frac){
       frac = Math.max(0, Math.min(1, frac));
@@ -135,30 +146,52 @@
       $prog.setAttribute('stroke-dashoffset', String(offset));
     }
 
+    function persist(){
+      localStorage.setItem('counter-settings', JSON.stringify({
+        intervalSec, limit, count, lastTickMs, remainderMs, running
+      }));
+    }
+
+    function syncUI(){
+      $count.textContent = String(count);
+      $interval.value = String(intervalSec);
+      $limit.value = String(limit);
+      const frac = Math.min(1, remainderMs / (intervalSec * 1000));
+      drawProgress(frac);
+    }
+
+    // ------- Core loop with catch-up -------
     let rafId = null;
-    let cycleStart = 0;
 
     function loop(ts){
       if (!running) { rafId = null; return; }
-      if (!cycleStart) cycleStart = ts;
-      const elapsed = (ts - cycleStart) / 1000;
-      const frac = elapsed / intervalSec;
+      const now = Date.now();
+      if (lastTickMs == null) lastTickMs = now;
+      const ivMs = intervalSec * 1000;
 
-      if (frac >= 1){
-        drawProgress(1);
-        cycleStart = ts;
-        count++;
+      let delta = now - lastTickMs; // time since last accounted update
+      if (delta < 0) delta = 0;
+
+      // Add new time to remainder and compute how many whole ticks occurred
+      remainderMs += delta;
+      const ticks = Math.floor(remainderMs / ivMs);
+      remainderMs = remainderMs % ivMs; // leftover for ring
+      lastTickMs = now;
+
+      if (ticks > 0){
+        count += ticks;
         $count.textContent = String(count);
         if (limit > 0 && count >= limit){
           stop();
           alert(`Reached limit: ${limit}`);
+          remainderMs = 0;
           drawProgress(0);
+          persist();
           return;
         }
-        drawProgress(0);
-      } else {
-        drawProgress(frac);
       }
+
+      drawProgress(remainderMs / ivMs);
       rafId = requestAnimationFrame(loop);
     }
 
@@ -169,7 +202,9 @@
         return;
       }
       running = true;
-      cycleStart = 0;
+      lastTickMs = Date.now();
+      requestWakeLockIfNeeded();
+      persist();
       rafId = requestAnimationFrame(loop);
     }
 
@@ -177,13 +212,18 @@
       running = false;
       if (rafId) cancelAnimationFrame(rafId);
       rafId = null;
+      releaseWakeLock();
+      persist();
     }
 
     function reset(){
       stop();
       count = 0;
+      remainderMs = 0;
+      lastTickMs = Date.now();
       drawProgress(0);
       $count.textContent = '0';
+      persist();
     }
 
     $start.addEventListener('click', start);
@@ -192,8 +232,11 @@
 
     $interval.addEventListener('change', () => {
       intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
+      // Rebase remainder to the new interval proportionally
+      remainderMs = Math.min(remainderMs, intervalSec * 1000);
       persist();
-      if (running) cycleStart = performance.now();
+      // Keep timing continuous
+      lastTickMs = Date.now();
     });
 
     $limit.addEventListener('change', () => {
@@ -203,14 +246,51 @@
       if (limit > 0 && count >= limit) stop();
     });
 
+    // Handle page visibility / background → catch up using Date.now deltas
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible'){
+        // Re-request wake lock if enabled
+        if ($keepAwake.checked) requestWakeLockIfNeeded();
+        // When returning, process any missed time in the next frame
+        lastTickMs = Date.now();
+      } else {
+        // Browsers may suspend rAF; keep our timestamps so we can catch up later
+        persist();
+      }
+    });
+
+    // Wake Lock (Android Chrome)
+    async function requestWakeLockIfNeeded(){
+      if (!$keepAwake.checked) return;
+      try {
+        if ('wakeLock' in navigator){
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => {});
+        }
+      } catch (e) { /* ignore */ }
+    }
+    function releaseWakeLock(){
+      try{ if (wakeLock) { wakeLock.release(); wakeLock = null; } }catch(e){}
+    }
+    $keepAwake.addEventListener('change', () => {
+      if ($keepAwake.checked && running) requestWakeLockIfNeeded();
+      else releaseWakeLock();
+      persist();
+    });
+
+    // Keyboard helpers (desktop): space toggles, 'r' resets
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space') { e.preventDefault(); running ? stop() : start(); }
       if (e.key === 'r' || e.key === 'R') { e.preventDefault(); reset(); }
     });
 
-    if (!$interval.value) $interval.value = '1';
-    if (intervalSec) $interval.value = String(intervalSec);
-    syncUI();
+    // Initial UI
+    (function init(){
+      $interval.value = String(intervalSec);
+      $limit.value = String(limit);
+      $count.textContent = String(count);
+      drawProgress((remainderMs || 0) / (intervalSec * 1000));
+    })();
   </script>
 </body>
 </html>
