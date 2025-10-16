@@ -251,6 +251,17 @@
       if (document.visibilityState === 'visible'){
         // Re-request wake lock if enabled
         if ($keepAwake.checked) requestWakeLockIfNeeded();
+        // IMPORTANT: do NOT reset lastTickMs here — we want delta to include time away
+        // If rAF was paused, restart it
+        if (running && !rafId) {
+          rafId = requestAnimationFrame(loop);
+        }
+      } else {
+        // Mark the moment we went to background so delta includes time away
+        lastTickMs = Date.now();
+        persist();
+      }
+    });
         // When returning, process any missed time in the next frame
         lastTickMs = Date.now();
       } else {
