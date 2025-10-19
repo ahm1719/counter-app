@@ -3,31 +3,30 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Basic Counter</title>
+  <title>Basic Counter with Presets</title>
   <style>
-    :root {
-      --bg: #0b0c10;       --card: #1f232b;   --text: #e6edf3;
-      --muted: #9aa4b2;    --track: #2e3440;  --ring: #3ea6ff;
-    }
+    :root { --bg:#0b0c10; --card:#1f232b; --text:#e6edf3; --muted:#9aa4b2; --track:#2e3440; --ring:#3ea6ff; }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;display:grid;place-items:center}
-    .app{width:min(520px,92vw);padding:20px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .app{width:min(560px,92vw);padding:20px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .title{margin:0 0 16px;font-weight:700;letter-spacing:.2px;font-size:clamp(18px,2.6vw,22px)}
 
     .ring-wrap{position:relative;width:220px;height:220px;margin:8px auto 18px}
     .count{position:absolute;inset:0;display:grid;place-items:center;font-size:48px;font-weight:800}
 
     .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 8px}
+    .controls.preset{grid-template-columns:1fr; gap:10px}
+    .preset-btn{position:relative}
+    .preset-btn.active{outline:2px solid #3ea6ff; background:#2a3a44}
     button{appearance:none;border:0;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:600;background:#2b313c;color:var(--text);transition:transform .04s ease,background .2s ease}
     button:active{transform:translateY(1px)}
-    .start{background:#213445}.stop{background:#402b2b}.reset{background:#2b3b2c}
+    .start{background:#213445}.stop{background:#402b2b}.reset{background:#2b3b2c}.preset-btn{background:#32424c}
 
     .rows{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
     .field{background:#2b313c;padding:10px 12px;border-radius:12px}
     .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
     .field select{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #39414f;background:#222730;color:var(--text);font-size:16px}
-    .note{text-align:center;margin-top:10px;color:var(--muted);font-size:12px}
   </style>
 </head>
 <body>
@@ -54,8 +53,8 @@
       <div class="field">
         <label for="interval">Interval (seconds)</label>
         <select id="interval">
-          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
-          <option>6</option><option>7</option><option>8</option><option>9</option><option selected>10</option>
+          <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+          <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
         </select>
       </div>
       <div class="field">
@@ -63,38 +62,43 @@
         <select id="limit">
           <option value="0">0 (No limit)</option>
           <option>10</option><option>20</option><option>30</option><option>40</option><option>50</option>
-          <option>60</option><option>70</option><option>80</option><option>90</option><option>100</option>
+          <option>60</option><option>70</option><option>80</option><option>90</option><option selected>100</option>
           <option>110</option><option>120</option>
         </select>
       </div>
     </div>
 
-    <p class="note">Ring restored. Catch‑up fixed: no extra counts on resume.</p>
+    <!-- Presets (do NOT auto-start) -->
+    <div class="controls preset" style="margin-top:12px">
+      <button class="preset-btn" id="presetA">سبحان الله و بحمده</button>
+      <button class="preset-btn" id="preset1"> لا إله إلا أنت سبحانك لإنتي كنت من الظالمين</button>
+      <button class="preset-btn" id="preset2"> لا إلا الله وحده لا شريك له, له الملك وله الحمد, وهو على كل شي قدير </button>
+    </div>
   </main>
 
   <script>
-    // =====================
-    // Robust timer with ring
-    // =====================
+    // ---- State ----
     let running = false;
     let count = 0;
-    let intervalSec = 10; // UI default
-    let limit = 0;        // 0 = no limit
+    let intervalSec = 3;   // default selection in UI
+    let limit = 100;       // default selection in UI
 
-    // Time accounting
-    let lastAccountedMs = null; // last time the loop accounted for time
-    let remainderMs = 0;        // leftover within current interval (ms)
+    let lastAccountedMs = null; // last accounted wall-time
+    let remainderMs = 0;        // leftover within current interval
 
-    // DOM
+    // ---- Elements ----
     const $count = document.getElementById('count');
     const $prog  = document.getElementById('prog');
     const $interval = document.getElementById('interval');
-    const $limit = document.getElementById('limit');
+    const $limit    = document.getElementById('limit');
     const $start = document.getElementById('startBtn');
     const $stop  = document.getElementById('stopBtn');
     const $reset = document.getElementById('resetBtn');
+    const $presetA = document.getElementById('presetA');
+    const $preset1 = document.getElementById('preset1');
+    const $preset2 = document.getElementById('preset2');
 
-    const C = 2 * Math.PI * 96; // circumference of r=96
+    const C = 2 * Math.PI * 96; // circumference
     $prog.setAttribute('stroke-dasharray', String(C));
 
     function drawProgress(frac){
@@ -104,7 +108,7 @@
     }
     function updateLabel(){ $count.textContent = String(count); }
 
-    // Main loop using rAF; adds ticks based on elapsed real time.
+    // ---- Loop ----
     let rafId = null;
     function loop(){
       if (!running) { rafId = null; return; }
@@ -119,18 +123,14 @@
       remainderMs = remainderMs % ivMs;
 
       if (ticks > 0){
-        // apply ticks but do not overshoot limit
         if (limit > 0){
           const remaining = Math.max(0, limit - count);
           const applied = Math.min(remaining, ticks);
           count += applied;
           if (count >= limit){
-            running = false;
-            remainderMs = 0;
-            drawProgress(0);
-            updateLabel();
+            running = false; remainderMs = 0; drawProgress(0); updateLabel();
             alert(`Reached limit: ${limit}`);
-            return; // stop loop
+            return;
           }
         } else {
           count += ticks;
@@ -142,6 +142,7 @@
       rafId = requestAnimationFrame(loop);
     }
 
+    // ---- Controls ----
     function start(){
       if (running) return;
       intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
@@ -158,24 +159,47 @@
     $stop.addEventListener('click', stop);
     $reset.addEventListener('click', reset);
 
-    // Keep counts correct on return WITHOUT double-adding: we don't add here, we let loop account via delta.
+    // Interval/Limit dropdown changes apply immediately to the next tick
+    $interval.addEventListener('change', () => {
+      intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
+    });
+    $limit.addEventListener('change', () => {
+      limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
+      if (limit > 0 && count >= limit) stop();
+    });
+
+    // Preset toggling — single-select, click again to deselect
+    let selectedPreset = null;
+    function applyPreset(btn, iv, lim){
+      if (selectedPreset === btn){
+        // Deselect
+        btn.classList.remove('active');
+        selectedPreset = null;
+        return; // Keep current interval/limit as-is
+      }
+      // Switch selection
+      [$presetA, $preset1, $preset2].forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPreset = btn;
+      // Apply values to UI and internal state
+      $interval.value = String(iv);
+      $limit.value = String(lim);
+      intervalSec = iv; limit = lim;
+    }
+
+    // Order: Top (A), then second (1), then last (2)
+    $presetA.addEventListener('click', () => applyPreset($presetA, 1, 100));
+    $preset1.addEventListener('click', () => applyPreset($preset1, 3, 100));
+    $preset2.addEventListener('click', () => applyPreset($preset2, 4, 100));
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible'){
-        // if loop was paused by the browser, resume scheduling only
         if (running && !rafId) rafId = requestAnimationFrame(loop);
-      } else {
-        // do nothing; lastAccountedMs remains at the last frame time so delta includes time away
       }
     });
 
-    // Init
-    (function init(){
-      updateLabel();
-      drawProgress(0);
-      // reflect defaults
-      $interval.value = '10';
-      $limit.value = '0';
-    })();
+    // Init UI to defaults
+    (function init(){ updateLabel(); drawProgress(0); $interval.value='3'; $limit.value='100'; })();
   </script>
 </body>
 </html>
