@@ -1,164 +1,124 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Counter App</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>العداد</title>
   <style>
-    body {
-      background: #0b0c10;
-      color: #e6edf3;
-      font-family: system-ui, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .counter {
-      text-align: center;
-      background: #1f232b;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-      width: 300px;
-    }
-    h1 {
-      font-size: 48px;
-      margin: 10px 0;
-    }
-    button {
-      margin: 5px;
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      color: white;
-    }
-    #start { background-color: #3b82f6; }
-    #stop { background-color: #ef4444; }
-    #reset { background-color: #22c55e; }
-    select {
-      margin: 10px;
-      padding: 5px;
-    }
-    .note {
-      font-size: 12px;
-      color: #9aa4b2;
-      margin-top: 10px;
-    }
+    :root { --bg:#0b0c10; --card:#1f232b; --text:#e6edf3; --muted:#9aa4b2; --track:#2e3440; --ring:#3ea6ff; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;display:grid;place-items:center}
+    .app{width:min(560px,92vw);padding:20px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .title{margin:0 0 16px;font-weight:700;letter-spacing:.2px;font-size:clamp(18px,2.6vw,22px);text-align:center}
+
+    .ring-wrap{position:relative;width:220px;height:220px;margin:8px auto 18px}
+    .count{position:absolute;inset:0;display:grid;place-items:center;font-size:48px;font-weight:800}
+
+    .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 8px}
+    .controls.preset{grid-template-columns:1fr;gap:10px}
+    button{appearance:none;border:0;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:600;background:#2b313c;color:var(--text);transition:transform .04s ease,background .2s ease}
+    button:active{transform:translateY(1px)}
+    .start{background:#213445}.stop{background:#402b2b}.reset{background:#2b3b2c}
+    .preset-btn{background:#32424c}
+    .preset-btn.active{outline:2px solid var(--ring);background:#2a3a44}
+    .start.active{outline:2px solid var(--ring);box-shadow:0 0 0 3px rgba(62,166,255,.25) inset}
+
+    .rows{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+    .field{background:#2b313c;padding:10px 12px;border-radius:12px}
+    .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .field select{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #39414f;background:#222730;color:var(--text);font-size:16px}
+    dialog{background:#1f232b;border:none;border-radius:10px;padding:20px;color:var(--text)}
+    dialog input,dialog select{width:100%;margin-bottom:10px;padding:8px;border-radius:8px;border:1px solid #39414f;background:#222730;color:var(--text)}
+    menu{display:flex;justify-content:space-between}
   </style>
 </head>
 <body>
-  <div class="counter">
-    <h1 id="count">0</h1>
-    <div>
-      <label for="interval">Interval (sec):</label>
-      <select id="interval">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8">8</option>
-        <option value="9">9</option>
-        <option value="10">10</option>
-      </select>
+  <main class="app" role="application" aria-label="عداد بسيط">
+    <h1 class="title">العداد</h1>
+
+    <div class="ring-wrap" aria-live="polite" aria-atomic="true">
+      <svg width="220" height="220" viewBox="0 0 220 220" aria-hidden="true">
+        <circle cx="110" cy="110" r="96" stroke="var(--track)" stroke-width="12" fill="none"></circle>
+        <circle id="prog" cx="110" cy="110" r="96" stroke="var(--ring)" stroke-width="12" fill="none"
+                stroke-linecap="round" transform="rotate(-90 110 110)" stroke-dasharray="603.185" stroke-dashoffset="603.185"></circle>
+      </svg>
+      <div class="count"><span id="count">0</span></div>
     </div>
-    <div>
-      <label for="limit">Limit:</label>
-      <select id="limit">
-        <option value="0">No limit</option>
-        <option value="10">10</option>
-        <option value="20">20</option>
-        <option value="30">30</option>
-        <option value="40">40</option>
-        <option value="50">50</option>
-        <option value="60">60</option>
-        <option value="70">70</option>
-        <option value="80">80</option>
-        <option value="90">90</option>
-        <option value="100">100</option>
-        <option value="110">110</option>
-        <option value="120">120</option>
-      </select>
+
+    <div class="controls">
+      <button class="start" id="startBtn">بدء</button>
+      <button class="stop" id="stopBtn">إيقاف</button>
+      <button class="reset" id="resetBtn">تصـفير</button>
     </div>
-    <div>
-      <button id="start">Start</button>
-      <button id="stop">Stop</button>
-      <button id="reset">Reset</button>
+
+    <div class="rows">
+      <div class="field">
+        <label for="interval">الفاصل بالثواني</label>
+        <select id="interval"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select>
+      </div>
+      <div class="field">
+        <label for="limit">الحد (0 = بدون حد)</label>
+        <select id="limit"><option value="0">0</option><option>10</option><option>20</option><option>30</option><option>40</option><option>50</option><option>60</option><option>70</option><option>80</option><option>90</option><option>100</option><option>110</option><option>120</option></select>
+      </div>
     </div>
-    <p class="note">Catch-up works automatically when returning to the app.</p>
-  </div>
+
+    <div class="controls preset" id="customPresets"></div>
+    <button class="preset-btn" id="addPresetBtn">إضافة</button>
+
+    <div class="controls preset" style="margin-top:12px">
+      <button class="preset-btn" id="presetA">سبحان الله و بحمده</button>
+      <button class="preset-btn" id="preset1">لا إله إلا أنت سبحانك إني كنت من الظالمين</button>
+      <button class="preset-btn" id="preset2">لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير</button>
+    </div>
+  </main>
+
+  <dialog id="cpDialog">
+    <form method="dialog">
+      <label>النص<input id="cpLabel" type="text"></label>
+      <label>الفاصل<select id="cpInterval"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></label>
+      <label>الحد<select id="cpLimit"><option value="0">0</option><option>10</option><option>20</option><option>30</option><option>40</option><option>50</option><option>60</option><option>70</option><option>80</option><option>90</option><option>100</option><option>110</option><option>120</option></select></label>
+      <menu>
+        <button id="cpCancel">إلغاء</button>
+        <button id="cpSave">حفظ</button>
+      </menu>
+    </form>
+  </dialog>
 
   <script>
-    let count = 0;
-    let running = false;
-    let intervalId = null;
-    let lastTime = null;
+    let running=false,count=0,intervalSec=3,limit=100,lastAccountedMs=null,remainderMs=0;
+    const $count=document.getElementById('count'),$prog=document.getElementById('prog'),$interval=document.getElementById('interval'),$limit=document.getElementById('limit'),$start=document.getElementById('startBtn'),$stop=document.getElementById('stopBtn'),$reset=document.getElementById('resetBtn'),$presetA=document.getElementById('presetA'),$preset1=document.getElementById('preset1'),$preset2=document.getElementById('preset2');
+    const C=2*Math.PI*96;$prog.setAttribute('stroke-dasharray',String(C));
+    function drawProgress(f){const o=C*(1-Math.max(0,Math.min(1,f)));$prog.setAttribute('stroke-dashoffset',String(o));}
+    function updateLabel(){ $count.textContent=String(count); }
+    let rafId=null;
+    function loop(){if(!running){rafId=null;return;}const n=Date.now();if(lastAccountedMs==null)lastAccountedMs=n;let d=n-lastAccountedMs;if(d<0)d=0;lastAccountedMs=n;const iv=intervalSec*1000;remainderMs+=d;const t=Math.floor(remainderMs/iv);remainderMs%=iv;if(t>0){if(limit>0){const r=Math.max(0,limit-count),a=Math.min(r,t);count+=a;if(count>=limit){running=false;remainderMs=0;drawProgress(0);updateLabel();$start.classList.remove('active');alert(`تم الوصول إلى الحد: ${limit}`);return;}}else count+=t;updateLabel();}drawProgress(remainderMs/iv);rafId=requestAnimationFrame(loop);}
+    function start(){if(running)return;intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10)));limit=Math.max(0,parseInt($limit.value||'0',10)||0);if(limit>0&&count>=limit){alert('أنت عند الحد. صفّر أو زِد الحد.');return;}running=true;$start.classList.add('active');lastAccountedMs=Date.now();if(!rafId)rafId=requestAnimationFrame(loop);}
+    function stop(){running=false;if(rafId)cancelAnimationFrame(rafId);rafId=null;$start.classList.remove('active');lastAccountedMs=null;}
+    function reset(){stop();count=0;remainderMs=0;lastAccountedMs=null;updateLabel();drawProgress(0);}
+    $start.onclick=start;$stop.onclick=stop;$reset.onclick=reset;
+    $interval.onchange=()=>intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10)));
+    $limit.onchange=()=>{limit=Math.max(0,parseInt($limit.value||'0',10)||0);if(limit>0&&count>=limit)stop();};
+    let selectedPreset=null;
+    function selectPreset(b){[$presetA,$preset1,$preset2,...document.querySelectorAll('#customPresets button')].forEach(x=>x.classList.remove('active'));b.classList.add('active');selectedPreset=b;}
+    function deselectPreset(b){b.classList.remove('active');if(selectedPreset===b)selectedPreset=null;}
+    function onPresetClick(b,iv,lim){if(selectedPreset===b){deselectPreset(b);return;}if(count>0){const r=confirm('هل تريد تصفير العداد؟\\nموافق = تصفير / إلغاء = متابعة');if(r)reset();else if(lim>0&&count>=lim)lim=0;} $interval.value=String(iv);$limit.value=String(lim);intervalSec=iv;limit=lim;selectPreset(b);}
+    $presetA.onclick=()=>onPresetClick($presetA,1,100);$preset1.onclick=()=>onPresetClick($preset1,3,100);$preset2.onclick=()=>onPresetClick($preset2,4,100);
 
-    const countDisplay = document.getElementById('count');
-    const intervalSelect = document.getElementById('interval');
-    const limitSelect = document.getElementById('limit');
+    const LS_KEY='counter.customPresets.v1';
+    function loadCustomPresets(){try{return JSON.parse(localStorage.getItem(LS_KEY))||[]}catch{return[]}}
+    function saveCustomPresets(l){localStorage.setItem(LS_KEY,JSON.stringify(l));}
+    const customWrap=document.getElementById('customPresets');
+    let customPresets=loadCustomPresets();
+    function renderCustomPresets(){customWrap.innerHTML='';customPresets.forEach(p=>{const b=document.createElement('button');b.className='preset-btn';b.textContent=p.label;b.addEventListener('click',()=>onPresetClick(b,p.interval,p.limit));const del=document.createElement('span');del.textContent=' 🗑';del.style.cursor='pointer';del.addEventListener('click',e=>{e.stopPropagation();if(confirm('حذف هذا البريمج؟')){customPresets=customPresets.filter(x=>x.id!==p.id);saveCustomPresets(customPresets);renderCustomPresets();}});b.appendChild(del);customWrap.appendChild(b);});}
 
-    function updateDisplay() {
-      countDisplay.textContent = count;
-    }
+    const addBtn=document.getElementById('addPresetBtn'),dlg=document.getElementById('cpDialog'),saveBtn=document.getElementById('cpSave'),cancelBtn=document.getElementById('cpCancel');
+    addBtn.onclick=()=>dlg.showModal();
+    cancelBtn.onclick=()=>dlg.close();
+    saveBtn.onclick=()=>{const label=document.getElementById('cpLabel').value.trim();const iv=Math.min(10,Math.max(1,parseInt(document.getElementById('cpInterval').value,10)||1));const lim=Math.max(0,parseInt(document.getElementById('cpLimit').value,10)||0);if(!label){alert('يرجى إدخال النص');return;}customPresets.push({id:Date.now(),label,interval:iv,limit:lim});saveCustomPresets(customPresets);renderCustomPresets();dlg.close();};
 
-    function startCounter() {
-      if (running) return;
-      running = true;
-      const interval = parseInt(intervalSelect.value) * 1000;
-      const limit = parseInt(limitSelect.value);
-      lastTime = Date.now();
-
-      intervalId = setInterval(() => {
-        count++;
-        updateDisplay();
-
-        if (limit > 0 && count >= limit) {
-          stopCounter();
-          alert(`Limit reached: ${limit}`);
-        }
-      }, interval);
-    }
-
-    function stopCounter() {
-      running = false;
-      clearInterval(intervalId);
-    }
-
-    function resetCounter() {
-      stopCounter();
-      count = 0;
-      updateDisplay();
-    }
-
-    window.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && running) {
-        const now = Date.now();
-        const diff = now - lastTime;
-        const interval = parseInt(intervalSelect.value) * 1000;
-        const limit = parseInt(limitSelect.value);
-        const missed = Math.floor(diff / interval);
-
-        count += missed;
-        if (limit > 0 && count >= limit) {
-          count = limit;
-          stopCounter();
-          alert(`Limit reached while you were away: ${limit}`);
-        }
-        updateDisplay();
-      }
-      lastTime = Date.now();
-    });
-
-    document.getElementById('start').onclick = startCounter;
-    document.getElementById('stop').onclick = stopCounter;
-    document.getElementById('reset').onclick = resetCounter;
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running&&!rafId)rafId=requestAnimationFrame(loop);});
+    (function init(){updateLabel();drawProgress(0);$interval.value='3';$limit.value='100';renderCustomPresets();})();
   </script>
 </body>
 </html>
