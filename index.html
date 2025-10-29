@@ -19,6 +19,8 @@
     button:active{transform:translateY(1px)}
     .start{background:#213445}.stop{background:#402b2b}.reset{background:#2b3b2c}.preset-btn{background:#32424c}
     .preset-btn.active{outline:2px solid var(--ring);background:#2a3a44}
+    /* Highlight Start while running */
+    .start.active{outline:2px solid var(--ring);box-shadow:0 0 0 3px rgba(62,166,255,.25) inset}
     .rows{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
     .field{background:#2b313c;padding:10px 12px;border-radius:12px}
     .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -132,6 +134,7 @@
           count += applied;
           if (count >= limit){
             running = false; remainderMs = 0; drawProgress(0); updateLabel();
+            $start.classList.remove('active');
             alert(`تم الوصول إلى الحد: ${limit}`);
             return;
           }
@@ -153,6 +156,12 @@
       limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
       if (limit > 0 && count >= limit){ alert('أنت فعلاً عند الحد. صفّر أو زِد الحد.'); return; }
       running = true;
+      $start.classList.add('active');
+      // نُعيد ضبط مرجع الزمن حتى لا يحتسب وقت التوقف
+      lastAccountedMs = Date.now();
+      if (!rafId) rafId = requestAnimationFrame(loop);
+    }
+      running = true;
       // نُعيد ضبط مرجع الزمن حتى لا يحتسب وقت التوقف
       lastAccountedMs = Date.now();
       if (!rafId) rafId = requestAnimationFrame(loop);
@@ -161,10 +170,16 @@
       running = false;
       if (rafId) cancelAnimationFrame(rafId);
       rafId = null;
+      $start.classList.remove('active');
       // تثبيت مرجع الزمن حتى لا يُحسب زمن التوقف لاحقاً
       lastAccountedMs = Date.now();
     }
-    function reset(){ stop(); count = 0; remainderMs = 0; lastAccountedMs = null; updateLabel(); drawProgress(0); }
+    function reset(){
+      stop();
+      count = 0; remainderMs = 0; lastAccountedMs = null;
+      $start.classList.remove('active');
+      updateLabel(); drawProgress(0);
+    }
 
     $start.addEventListener('click', start);
     $stop.addEventListener('click', stop);
@@ -183,6 +198,28 @@
         selectedPreset = null;
         return;
       }
+      // إذا العداد > 0 و تم اختيار بريمج، اسأل المستخدم: تصفير أم متابعة؟
+      if (count > 0){
+        const resetChoice = confirm('هل تريد تصفير العداد؟
+موافق = تصفير / إلغاء = متابعة بدون تصفير');
+        if (resetChoice){
+          reset();
+        } else {
+          // متابعة بدون تصفير. إذا كان الحد سيمنع المتابعة (count >= lim) فاجعل الحد بلا سقف
+          if (lim > 0 && count >= lim){
+            lim = 0;
+          }
+        }
+      }
+      // تبديل التحديد
+      [$presetA, $preset1, $preset2].forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPreset = btn;
+      // تطبيق القيم فقط
+      $interval.value = String(iv);
+      $limit.value = String(lim);
+      intervalSec = iv; limit = lim;
+    }
       // تبديل التحديد
       [$presetA, $preset1, $preset2].forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
