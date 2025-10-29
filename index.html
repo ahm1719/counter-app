@@ -5,22 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>العداد</title>
   <style>
-    :root{--bg:#0b0c10;--card:#1f232b;--text:#e6edf3;--muted:#9aa4b2;--track:#2e3440;--ring:#3ea6ff}
+    :root { --bg:#0b0c10; --card:#1f232b; --text:#e6edf3; --muted:#9aa4b2; --track:#2e3440; --ring:#3ea6ff; }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial,sans-serif;display:grid;place-items:center}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;display:grid;place-items:center}
     .app{width:min(560px,92vw);padding:20px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
     .title{margin:0 0 16px;font-weight:700;letter-spacing:.2px;font-size:clamp(18px,2.6vw,22px);text-align:center}
+
     .ring-wrap{position:relative;width:220px;height:220px;margin:8px auto 18px}
     .count{position:absolute;inset:0;display:grid;place-items:center;font-size:48px;font-weight:800}
+
     .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 8px}
     .controls.preset{grid-template-columns:1fr;gap:10px}
     button{appearance:none;border:0;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:600;background:#2b313c;color:var(--text);transition:transform .04s ease,background .2s ease}
     button:active{transform:translateY(1px)}
-    .start{background:#213445}.stop{background:#402b2b}.reset{background:#2b3b2c}.preset-btn{background:#32424c}
+    .start{background:#213445}.stop{background:#402b2b}.reset{background:#2b3b2c}
+    .preset-btn{background:#32424c}
     .preset-btn.active{outline:2px solid var(--ring);background:#2a3a44}
-    /* Highlight Start while running */
     .start.active{outline:2px solid var(--ring);box-shadow:0 0 0 3px rgba(62,166,255,.25) inset}
+
     .rows{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
     .field{background:#2b313c;padding:10px 12px;border-radius:12px}
     .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -28,10 +31,10 @@
   </style>
 </head>
 <body>
-  <main class="app" role="application" aria-label="Counter">
-    <h1 class="title">عداد بسيط</h1>
+  <main class="app" role="application" aria-label="عداد بسيط">
+    <h1 class="title">العداد</h1>
 
-    <!-- الحلقة حول الرقم -->
+    <!-- الحلقة الدائرية -->
     <div class="ring-wrap" aria-live="polite" aria-atomic="true">
       <svg width="220" height="220" viewBox="0 0 220 220" aria-hidden="true">
         <circle cx="110" cy="110" r="96" stroke="var(--track)" stroke-width="12" fill="none"></circle>
@@ -45,30 +48,30 @@
     <div class="controls">
       <button class="start" id="startBtn">بدء</button>
       <button class="stop" id="stopBtn">إيقاف</button>
-      <button class="reset" id="resetBtn">تصفير</button>
+      <button class="reset" id="resetBtn">تصـفير</button>
     </div>
 
     <!-- الإعدادات -->
     <div class="rows">
       <div class="field">
-        <label for="interval">الفاصل (ثانية)</label>
+        <label for="interval">الفاصل بالثواني</label>
         <select id="interval">
-          <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
           <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
         </select>
       </div>
       <div class="field">
-        <label for="limit">العدد الأقصى (0 = بلا حد)</label>
+        <label for="limit">الحد (0 = بدون حد)</label>
         <select id="limit">
           <option value="0">0 (بدون حد)</option>
           <option>10</option><option>20</option><option>30</option><option>40</option><option>50</option>
-          <option>60</option><option>70</option><option>80</option><option>90</option><option selected>100</option>
+          <option>60</option><option>70</option><option>80</option><option>90</option><option>100</option>
           <option>110</option><option>120</option>
         </select>
       </div>
     </div>
 
-    <!-- التراكيب (لا تشغل تلقائياً) -->
+    <!-- البريمجات (لا تبدأ تلقائياً) -->
     <div class="controls preset" style="margin-top:12px">
       <button class="preset-btn" id="presetA">سبحان الله و بحمده</button>
       <button class="preset-btn" id="preset1">لا إله إلا أنت سبحانك إني كنت من الظالمين</button>
@@ -77,16 +80,16 @@
   </main>
 
   <script>
-    // ======== حالة العداد ========
+    // ===== الحالة =====
     let running = false;
     let count = 0;
-    let intervalSec = 3;   // مطابق للقائمة الافتراضية
-    let limit = 100;       // مطابق للقائمة الافتراضية
+    let intervalSec = 3;  // افتراضي
+    let limit = 100;      // افتراضي
 
-    let lastAccountedMs = null; // آخر وقت محسوب
-    let remainderMs = 0;        // المتبقي ضمن الفاصل الحالي
+    let lastAccountedMs = null; // مرساة الزمن
+    let remainderMs = 0;        // المتبقي ضمن الفترة
 
-    // ======== عناصر DOM ========
+    // ===== العناصر =====
     const $count = document.getElementById('count');
     const $prog  = document.getElementById('prog');
     const $interval = document.getElementById('interval');
@@ -98,14 +101,14 @@
     const $preset1 = document.getElementById('preset1');
     const $preset2 = document.getElementById('preset2');
 
-    // تحقق صارم: إذا لم يوجد عنصر أساسي، لا نتابع لإظهار الخطأ بدلاً من كسر كل شيء
-    if (!$count || !$prog || !$interval || !$limit || !$start || !$stop || !$reset || !$presetA || !$preset1 || !$preset2){
-      alert('خطأ في الصفحة: عناصر مفقودة.');
+    // ربط تحقق مبكر
+    if (!$count || !$prog || !$interval || !$limit || !$start || !$stop || !$reset || !$presetA || !$preset1 || !$preset2) {
+      console.error('Element binding failed.');
     }
 
-    // ======== الرسم الدائري ========
-    const C = 2 * Math.PI * 96; // محيط الدائرة r=96
+    const C = 2 * Math.PI * 96; // محيط الدائرة
     $prog.setAttribute('stroke-dasharray', String(C));
+
     function drawProgress(frac){
       const clamped = Math.max(0, Math.min(1, frac));
       const offset = C * (1 - clamped);
@@ -113,7 +116,7 @@
     }
     function updateLabel(){ $count.textContent = String(count); }
 
-    // ======== الحلقة ========
+    // ===== الحلقة الرئيسية =====
     let rafId = null;
     function loop(){
       if (!running) { rafId = null; return; }
@@ -148,21 +151,14 @@
       rafId = requestAnimationFrame(loop);
     }
 
-    // ======== التحكم ========
+    // ===== تحكم =====
     function start(){
       if (running) return;
-      // قراءة القوائم دائماً عند البدء
       intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
       limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
-      if (limit > 0 && count >= limit){ alert('أنت فعلاً عند الحد. صفّر أو زِد الحد.'); return; }
+      if (limit > 0 && count >= limit){ alert('أنت عند الحد. صفّر أو زِد الحد.'); return; }
       running = true;
       $start.classList.add('active');
-      // نُعيد ضبط مرجع الزمن حتى لا يحتسب وقت التوقف
-      lastAccountedMs = Date.now();
-      if (!rafId) rafId = requestAnimationFrame(loop);
-    }
-      running = true;
-      // نُعيد ضبط مرجع الزمن حتى لا يحتسب وقت التوقف
       lastAccountedMs = Date.now();
       if (!rafId) rafId = requestAnimationFrame(loop);
     }
@@ -171,13 +167,11 @@
       if (rafId) cancelAnimationFrame(rafId);
       rafId = null;
       $start.classList.remove('active');
-      // تثبيت مرجع الزمن حتى لا يُحسب زمن التوقف لاحقاً
-      lastAccountedMs = Date.now();
+      lastAccountedMs = null; // عدم احتساب وقت التوقف
     }
     function reset(){
       stop();
       count = 0; remainderMs = 0; lastAccountedMs = null;
-      $start.classList.remove('active');
       updateLabel(); drawProgress(0);
     }
 
@@ -185,63 +179,65 @@
     $stop.addEventListener('click', stop);
     $reset.addEventListener('click', reset);
 
-    // تحديث القيم من القوائم فوراً
-    $interval.addEventListener('change', ()=>{ intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10))); });
-    $limit.addEventListener('change', ()=>{ limit = Math.max(0, parseInt($limit.value || '0', 10) || 0); if (limit > 0 && count >= limit) stop(); });
+    // تغيّر الفاصل/الحد من القوائم
+    $interval.addEventListener('change', () => { intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10))); });
+    $limit.addEventListener('change', () => {
+      limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
+      if (limit > 0 && count >= limit) stop();
+    });
 
-    // ======== التراكيب مع إبراز التحديد (toggle) ========
+    // ===== البريمجات مع إبراز وتأكيد =====
     let selectedPreset = null;
-    function togglePreset(btn, iv, lim){
+    function selectPreset(btn){
+      [$presetA, $preset1, $preset2].forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedPreset = btn;
+    }
+    function deselectPreset(btn){
+      btn.classList.remove('active');
+      if (selectedPreset === btn) selectedPreset = null;
+    }
+    function onPresetClick(btn, iv, lim){
+      // toggle
       if (selectedPreset === btn){
-        // إلغاء التحديد
-        btn.classList.remove('active');
-        selectedPreset = null;
+        deselectPreset(btn);
         return;
       }
-      // إذا العداد > 0 و تم اختيار بريمج، اسأل المستخدم: تصفير أم متابعة؟
+      // if counter > 0, ask reset or continue
       if (count > 0){
-        const resetChoice = confirm('هل تريد تصفير العداد؟
-موافق = تصفير / إلغاء = متابعة بدون تصفير');
+        const resetChoice = confirm('هل تريد تصفير العداد؟\nموافق = تصفير / إلغاء = متابعة');
         if (resetChoice){
           reset();
         } else {
-          // متابعة بدون تصفير. إذا كان الحد سيمنع المتابعة (count >= lim) فاجعل الحد بلا سقف
-          if (lim > 0 && count >= lim){
-            lim = 0;
-          }
+          // continue: if current count already >= new limit, allow continuing by removing the limit
+          if (lim > 0 && count >= lim){ lim = 0; }
         }
       }
-      // تبديل التحديد
-      [$presetA, $preset1, $preset2].forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedPreset = btn;
-      // تطبيق القيم فقط
+      // apply preset values to UI and internal state
       $interval.value = String(iv);
       $limit.value = String(lim);
       intervalSec = iv; limit = lim;
+      selectPreset(btn);
     }
-      // تبديل التحديد
-      [$presetA, $preset1, $preset2].forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedPreset = btn;
-      // تطبيق القيم فقط (بدون تشغيل وبدون تصفير)
-      $interval.value = String(iv);
-      $limit.value = String(lim);
-      intervalSec = iv; limit = lim;
-    }
-    $presetA.addEventListener('click', ()=>togglePreset($presetA, 1, 100));
-    $preset1.addEventListener('click', ()=>togglePreset($preset1, 3, 100));
-    $preset2.addEventListener('click', ()=>togglePreset($preset2, 4, 100));
 
-    // عند العودة من الخلفية: إن كان جارياً، نعيد جدولة الحلقة فقط
-    document.addEventListener('visibilitychange', ()=>{
+    // ترتيب حسب طلبك
+    $presetA.addEventListener('click', () => onPresetClick($presetA, 1, 100));
+    $preset1.addEventListener('click', () => onPresetClick($preset1, 3, 100));
+    $preset2.addEventListener('click', () => onPresetClick($preset2, 4, 100));
+
+    // عند الرجوع للتبويب، إن كان يعمل نعيد تشغيل الحلقة فقط
+    document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible'){
         if (running && !rafId) rafId = requestAnimationFrame(loop);
       }
     });
 
-    // بدء أولي
-    (function init(){ updateLabel(); drawProgress(0); $interval.value='3'; $limit.value='100'; })();
+    // تهيئة
+    (function init(){
+      updateLabel(); drawProgress(0);
+      $interval.value = '3';
+      $limit.value = '100';
+    })();
   </script>
 </body>
 </html>
