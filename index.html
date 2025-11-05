@@ -96,7 +96,7 @@
   <script>
     'use strict';
 
-    // --- tiny inline error banner (helps on mobile) ---
+    // Error banner to surface runtime issues (helps debugging on mobile)
     (function(){
       const $e = document.getElementById('err');
       window.addEventListener('error', (ev)=>{
@@ -125,13 +125,12 @@
     const $eta=document.getElementById('etaText');
     const customWrap=document.getElementById('customPresets');
 
-    // guard missing elements
     if(!$count||!$prog||!$interval||!$limit||!$start||!$stop||!$reset||!$presetA||!$preset1||!$preset2||!$eta||!customWrap){
       const m='Element binding failed';
       console.error(m); const e=document.getElementById('err'); if(e){e.style.display='block'; e.textContent=m;}
     }
 
-    // ring
+    // ring helpers
     const C=2*Math.PI*96; $prog.setAttribute('stroke-dasharray',String(C));
     function drawProgress(f){ const o=C*(1-Math.max(0,Math.min(1,f))); $prog.setAttribute('stroke-dashoffset',String(o)); }
     function updateLabel(){ $count.textContent=String(count); }
@@ -181,36 +180,97 @@
       rafId=requestAnimationFrame(loop);
     }
 
-    // Start with 3-option prompt at limit
+    // Start with 3-button modal at limit (Reset / Continue / Cancel)
     function start(){
       if(running) return;
+
       intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10)));
       limit=Math.max(0,parseInt($limit.value||'0',10)||0);
 
       if(limit>0 && count>=limit){
-        const choice = prompt(
-          'لقد وصلت إلى الحد المحدد.\n' +
-          '1 = تصفير العداد والبدء من جديد\n' +
-          '2 = المتابعة في العد (بدون حد)\n' +
-          '3 = إلغاء (عدم القيام بأي شيء)',''
-        );
-        if(choice==='1'){
-          // Reset then re-read current selectors
+        // Build a simple overlay modal
+        const overlay=document.createElement('div');
+        overlay.style.position='fixed';
+        overlay.style.inset='0';
+        overlay.style.background='rgba(0,0,0,0.6)';
+        overlay.style.display='grid';
+        overlay.style.placeItems='center';
+        overlay.style.zIndex='10000';
+
+        const box=document.createElement('div');
+        box.style.background='#1f232b';
+        box.style.padding='20px';
+        box.style.borderRadius='12px';
+        box.style.textAlign='center';
+        box.style.color='white';
+        box.style.width='min(320px,90vw)';
+        box.innerHTML='<p style="margin-bottom:14px;font-size:15px">لقد وصلت إلى الحد المحدد</p>';
+
+        const btnReset=document.createElement('button');
+        btnReset.textContent='تصفير والبدء من جديد';
+        btnReset.style.margin='6px';
+        btnReset.style.padding='10px 12px';
+        btnReset.style.border='0';
+        btnReset.style.borderRadius='8px';
+        btnReset.style.background='#213445';
+        btnReset.style.color='white';
+        btnReset.style.cursor='pointer';
+        btnReset.style.width='100%';
+
+        const btnContinue=document.createElement('button');
+        btnContinue.textContent='متابعة بدون حد';
+        btnContinue.style.margin='6px';
+        btnContinue.style.padding='10px 12px';
+        btnContinue.style.border='0';
+        btnContinue.style.borderRadius='8px';
+        btnContinue.style.background='#32424c';
+        btnContinue.style.color='white';
+        btnContinue.style.cursor='pointer';
+        btnContinue.style.width='100%';
+
+        const btnCancel=document.createElement('button');
+        btnCancel.textContent='إلغاء';
+        btnCancel.style.margin='6px';
+        btnCancel.style.padding='10px 12px';
+        btnCancel.style.border='0';
+        btnCancel.style.borderRadius='8px';
+        btnCancel.style.background='#402b2b';
+        btnCancel.style.color='white';
+        btnCancel.style.cursor='pointer';
+        btnCancel.style.width='100%';
+
+        box.appendChild(btnReset);
+        box.appendChild(btnContinue);
+        box.appendChild(btnCancel);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        function cleanup(){ try{ document.body.removeChild(overlay); }catch{} }
+
+        btnReset.onclick=()=>{
+          cleanup();
+          // reset then start with current selectors
           stop(); count=0; remainderMs=0; lastAccountedMs=null; updateLabel(); drawProgress(0);
           intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10)));
           limit=Math.max(0,parseInt($limit.value||'0',10)||0);
-        } else if(choice==='2'){
-          // Continue without limit
+          running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA(); if(!rafId) rafId=requestAnimationFrame(loop);
+        };
+        btnContinue.onclick=()=>{
+          cleanup();
+          // continue beyond limit
           limit=0; if($limit) $limit.value='0'; refreshETA();
-        } else {
-          // Cancel: do nothing
-          return;
-        }
+          running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA(); if(!rafId) rafId=requestAnimationFrame(loop);
+        };
+        btnCancel.onclick=()=>{ cleanup(); /* do nothing */ };
+
+        return; // wait for user choice
       }
 
+      // normal start
       running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
       if(!rafId) rafId=requestAnimationFrame(loop);
     }
+
     function stop(){ running=false; if(rafId) cancelAnimationFrame(rafId); rafId=null; $start.classList.remove('active'); lastAccountedMs=null; }
     function reset(){ stop(); count=0; remainderMs=0; lastAccountedMs=null; updateLabel(); drawProgress(0); refreshETA(); }
 
