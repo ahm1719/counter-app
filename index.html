@@ -142,9 +142,36 @@
 
     function start(){
       if(running) return;
+      // read latest controls
       intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10)));
       limit=Math.max(0,parseInt($limit.value||'0',10)||0);
-      if(limit>0 && count>=limit){ alert('أنت عند الحد. صفّر أو زِد الحد.'); return; }
+
+      // If at/over the limit, offer Reset or Continue-without-limit
+      if(limit>0 && count>=limit){
+        const choice = confirm('لقد وصلت إلى الحد المحدد.
+موافق = تصفير العداد والبدء
+إلغاء = المتابعة دون حد');
+        if(choice){
+          // Reset counter then continue starting normally with same limit
+          reset();
+          // re-read controls after reset (user might change quickly)
+          intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10)));
+          limit=Math.max(0,parseInt($limit.value||'0',10)||0);
+        } else {
+          // Continue counting beyond the limit (set to unlimited)
+          limit = 0;
+          $limit.value = '0';
+          refreshETA();
+        }
+      }
+
+      // Start running
+      running=true;
+      $start.classList.add('active');
+      lastAccountedMs=Date.now();
+      refreshETA();
+      if(!rafId) rafId=requestAnimationFrame(loop);
+    }
       running=true; $start.classList.add('active'); lastAccountedMs=Date.now();
       refreshETA();
       if(!rafId) rafId=requestAnimationFrame(loop);
