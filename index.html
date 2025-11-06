@@ -30,10 +30,10 @@
     .rows{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
     .field{background:#2b313c;padding:10px 12px;border-radius:12px}
     .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
-    .field select,.field input[type=range]{width:100%}
     .limit-row{display:flex; align-items:center; gap:10px}
-    .limit-value{min-width:80px; text-align:center; color:var(--muted); font-size:14px}
+    .limit-row input[type=range]{flex:1}
     .nudge{width:36px; height:36px; border-radius:8px; border:none; background:#2b313c; color:#e6edf3; cursor:pointer; font-size:18px; line-height:1}
+    .limit-help{margin-top:6px; font-size:12px; color:var(--muted); text-align:center}
 
     dialog{background:#1f232b;border:none;border-radius:10px;padding:20px;color:#e6edf3}
     dialog input,dialog select{width:100%;margin-bottom:10px;padding:8px;border-radius:8px;border:1px solid #39414f;background:#222730;color:#e6edf3}
@@ -71,14 +71,15 @@
           <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
         </select>
       </div>
+
       <div class="field">
         <label for="limit">الحد (0 = بدون حد)</label>
         <div class="limit-row">
           <button class="nudge" id="limitDown" aria-label="إنقاص الحد">−</button>
           <input id="limit" type="range" min="0" max="100" step="1" value="100" aria-label="الحد" />
           <button class="nudge" id="limitUp" aria-label="زيادة الحد">+</button>
-          <div class="limit-value"><span id="limitVal">100</span></div>
         </div>
+        <div class="limit-help">القيمة الحالية: <span id="limitVal">100</span></div>
       </div>
     </div>
 
@@ -103,7 +104,7 @@
       </label>
       <label>الحد (0 = بدون حد)
         <input id="cpLimit" type="range" min="0" max="100" step="1" value="100">
-        <div class="limit-value">القيمة: <span id="cpLimitVal">100</span></div>
+        <div class="limit-help">القيمة: <span id="cpLimitVal">100</span></div>
       </label>
       <menu>
         <button id="cpCancel">إلغاء</button>
@@ -137,7 +138,7 @@
     const $prog = document.getElementById('prog');
     const $interval = document.getElementById('interval');
     const $limit = document.getElementById('limit');       // range slider
-    const $limitVal = document.getElementById('limitVal'); // text display
+    const $limitVal = document.getElementById('limitVal'); // text display (below)
     const $limitDown = document.getElementById('limitDown');
     const $limitUp = document.getElementById('limitUp');
     const $start = document.getElementById('startBtn');
@@ -214,55 +215,44 @@
       intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
       limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
 
-      // If limit already reached, show modal (Reset / Continue / Cancel)
+      // Case A: limit already reached -> Reset / Continue without limit / Cancel
       if(limit>0 && count>=limit){
-        const overlay=document.createElement('div');
-        overlay.style.position='fixed'; overlay.style.inset='0';
-        overlay.style.background='rgba(0,0,0,0.6)'; overlay.style.display='grid';
-        overlay.style.placeItems='center'; overlay.style.zIndex='10000';
-
-        const box=document.createElement('div');
-        box.style.background='#1f232b'; box.style.padding='20px';
-        box.style.borderRadius='12px'; box.style.textAlign='center';
-        box.style.color='white'; box.style.width='min(320px,90vw)';
-        box.innerHTML='<p style="margin-bottom:14px;font-size:15px">لقد وصلت إلى الحد المحدد</p>';
-
-        const btnReset=document.createElement('button');
-        btnReset.textContent='تصفير والبدء من جديد';
-        Object.assign(btnReset.style,{margin:'6px',padding:'10px 12px',border:'0',borderRadius:'8px',background:'#213445',color:'white',cursor:'pointer',width:'100%'});
-
-        const btnContinue=document.createElement('button');
-        btnContinue.textContent='متابعة بدون حد';
-        Object.assign(btnContinue.style,{margin:'6px',padding:'10px 12px',border:'0',borderRadius:'8px',background:'#32424c',color:'white',cursor:'pointer',width:'100%'});
-
-        const btnCancel=document.createElement('button');
-        btnCancel.textContent='إلغاء';
-        Object.assign(btnCancel.style,{margin:'6px',padding:'10px 12px',border:'0',borderRadius:'8px',background:'#402b2b',color:'white',cursor:'pointer',width:'100%'});
-
-        box.appendChild(btnReset); box.appendChild(btnContinue); box.appendChild(btnCancel);
-        overlay.appendChild(box); document.body.appendChild(overlay);
-        const cleanup=()=>{ try{ document.body.removeChild(overlay); }catch{} };
-
-        btnReset.onclick=()=>{
-          cleanup();
-          stop(); count=0; remainderMs=0; lastAccountedMs=null; updateLabel(); drawProgress(0);
-          intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
-          limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
-          if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
-          running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
-          rafId=requestAnimationFrame(loop);
-        };
-        btnContinue.onclick=()=>{
-          cleanup();
-          limit=0; $limit.value='0'; updateLimitLabel(); refreshETA();
-          if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
-          running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
-          rafId=requestAnimationFrame(loop);
-        };
-        btnCancel.onclick=()=>{ cleanup(); };
+        showModal([
+          {text:'تصفير والبدء من جديد', style:'#213445', action:()=>{
+            stop(); count=0; remainderMs=0; lastAccountedMs=null; updateLabel(); drawProgress(0);
+            intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
+            limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
+            running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
+            rafId=requestAnimationFrame(loop);
+          }},
+          {text:'متابعة بدون حد', style:'#32424c', action:()=>{
+            limit=0; $limit.value='0'; updateLimitLabel(); refreshETA();
+            running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
+            rafId=requestAnimationFrame(loop);
+          }},
+          {text:'إلغاء', style:'#402b2b', action:()=>{}}
+        ], 'لقد وصلت إلى الحد المحدد');
         return;
       }
 
+      // Case B: count > 0 (not at limit) -> Reset / Continue / Cancel
+      if(count>0){
+        showModal([
+          {text:'تصفير والبدء من جديد', style:'#213445', action:()=>{
+            stop(); count=0; remainderMs=0; lastAccountedMs=null; updateLabel(); drawProgress(0);
+            running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
+            rafId=requestAnimationFrame(loop);
+          }},
+          {text:'متابعة', style:'#32424c', action:()=>{
+            running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
+            rafId=requestAnimationFrame(loop);
+          }},
+          {text:'إلغاء', style:'#402b2b', action:()=>{}}
+        ], 'بدء العداد؟');
+        return;
+      }
+
+      // Normal start
       running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
       rafId=requestAnimationFrame(loop);
     }
@@ -273,6 +263,31 @@
     $start.addEventListener('click', start);
     $stop.addEventListener('click', stop);
     $reset.addEventListener('click', reset);
+
+    // Reusable modal
+    function showModal(buttons, message){
+      const overlay=document.createElement('div');
+      overlay.style.position='fixed'; overlay.style.inset='0';
+      overlay.style.background='rgba(0,0,0,0.6)'; overlay.style.display='grid';
+      overlay.style.placeItems='center'; overlay.style.zIndex='10000';
+
+      const box=document.createElement('div');
+      box.style.background='#1f232b'; box.style.padding='20px';
+      box.style.borderRadius='12px'; box.style.textAlign='center';
+      box.style.color='white'; box.style.width='min(340px,90vw)';
+      box.innerHTML=`<p style="margin-bottom:14px;font-size:15px">${message||''}</p>`;
+
+      buttons.forEach(b=>{
+        const el=document.createElement('button');
+        el.textContent=b.text;
+        Object.assign(el.style,{margin:'6px',padding:'10px 12px',border:'0',borderRadius:'8px',background:b.style||'#32424c',color:'white',cursor:'pointer',width:'100%'});
+        el.onclick=()=>{ try{ document.body.removeChild(overlay);}catch{}; b.action&&b.action(); };
+        box.appendChild(el);
+      });
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
 
     // Limit slider + precise nudges
     function clamp(v){ return Math.min(100, Math.max(0, v|0)); }
