@@ -32,7 +32,8 @@
     .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
     .field select,.field input[type=range]{width:100%}
     .limit-row{display:flex; align-items:center; gap:10px}
-    .limit-value{min-width:70px; text-align:center; color:var(--muted); font-size:14px}
+    .limit-value{min-width:80px; text-align:center; color:var(--muted); font-size:14px}
+    .nudge{width:36px; height:36px; border-radius:8px; border:none; background:#2b313c; color:#e6edf3; cursor:pointer; font-size:18px; line-height:1}
 
     dialog{background:#1f232b;border:none;border-radius:10px;padding:20px;color:#e6edf3}
     dialog input,dialog select{width:100%;margin-bottom:10px;padding:8px;border-radius:8px;border:1px solid #39414f;background:#222730;color:#e6edf3}
@@ -73,7 +74,9 @@
       <div class="field">
         <label for="limit">الحد (0 = بدون حد)</label>
         <div class="limit-row">
+          <button class="nudge" id="limitDown" aria-label="إنقاص الحد">−</button>
           <input id="limit" type="range" min="0" max="100" step="1" value="100" aria-label="الحد" />
+          <button class="nudge" id="limitUp" aria-label="زيادة الحد">+</button>
           <div class="limit-value"><span id="limitVal">100</span></div>
         </div>
       </div>
@@ -135,6 +138,8 @@
     const $interval = document.getElementById('interval');
     const $limit = document.getElementById('limit');       // range slider
     const $limitVal = document.getElementById('limitVal'); // text display
+    const $limitDown = document.getElementById('limitDown');
+    const $limitUp = document.getElementById('limitUp');
     const $start = document.getElementById('startBtn');
     const $stop = document.getElementById('stopBtn');
     const $reset = document.getElementById('resetBtn');
@@ -209,6 +214,7 @@
       intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
       limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
 
+      // If limit already reached, show modal (Reset / Continue / Cancel)
       if(limit>0 && count>=limit){
         const overlay=document.createElement('div');
         overlay.style.position='fixed'; overlay.style.inset='0';
@@ -268,16 +274,31 @@
     $stop.addEventListener('click', stop);
     $reset.addEventListener('click', reset);
 
-    // Inputs
+    // Limit slider + precise nudges
+    function clamp(v){ return Math.min(100, Math.max(0, v|0)); }
     function updateLimitLabel(){
       const v = parseInt($limit.value,10)||0;
       $limitVal.textContent = (v===0 ? 'بدون حد' : String(v));
     }
-    $interval.addEventListener('change', ()=>{ intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10))); refreshETA(); });
-    $limit.addEventListener('input', ()=>{ updateLimitLabel(); });
-    $limit.addEventListener('change', ()=>{
-      limit=Math.max(0,parseInt($limit.value||'0',10)||0);
+    function applyLimitFromUI(){
+      limit = Math.max(0, parseInt($limit.value||'0', 10) || 0);
       if(limit>0 && count>=limit) stop();
+      refreshETA();
+    }
+    $limit.addEventListener('input', updateLimitLabel);
+    $limit.addEventListener('change', applyLimitFromUI);
+    $limitDown.addEventListener('click', ()=>{
+      $limit.value = String(clamp((parseInt($limit.value,10)||0) - 1));
+      updateLimitLabel(); applyLimitFromUI();
+    });
+    $limitUp.addEventListener('click', ()=>{
+      $limit.value = String(clamp((parseInt($limit.value,10)||0) + 1));
+      updateLimitLabel(); applyLimitFromUI();
+    });
+
+    // Interval select
+    $interval.addEventListener('change', ()=>{
+      intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10)));
       refreshETA();
     });
 
@@ -292,7 +313,7 @@
     function onPresetClick(b, iv, lim){
       if(selectedPreset===b){ deselectPreset(b); return; }
       $interval.value=String(iv); intervalSec=iv;
-      $limit.value=String(lim); limit=lim; updateLimitLabel();
+      $limit.value=String(clamp(lim)); updateLimitLabel(); limit=clamp(lim);
       selectPreset(b);
       refreshETA();
     }
