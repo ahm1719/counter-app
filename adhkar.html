@@ -32,8 +32,13 @@
     .x:active{transform:translateY(1px)}
     .progress{font-size:12px;color:#9aa4b2}
     .text{font-size:18px;line-height:1.9;white-space:pre-wrap;margin:8px 0 10px}
-    .meta{font-size:13px;color:#9aa4b2;margin-bottom:10px}
+    .meta{font-size:13px;color:#9aa4b2;margin-bottom:6px}
     .tap-hint{font-size:12px;color:#9aa4b2; text-align:center; margin-top:8px}
+
+    .auto-wrap{display:none; gap:8px; align-items:center; justify-content:center; margin:8px 0 6px}
+    .auto-note{font-size:12px;color:#9aa4b2}
+    .auto-btn{appearance:none;border:0;border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:700;background:#213445;color:#e6edf3}
+    .auto-btn.stop{background:#402b2b}
 
     .nav{display:flex;gap:10px;justify-content:space-between;position:sticky;bottom:0;background:#101319;padding-top:10px}
     .nav .btn{flex:1}
@@ -70,8 +75,15 @@
       </div>
       <button class="x" id="closeCard" title="إغلاق">✕</button>
     </header>
+
     <article class="text" id="cardText"></article>
     <div class="meta" id="cardMeta"></div>
+
+    <!-- Auto Tasbih (only for repeat=100) -->
+    <div class="auto-wrap" id="autoWrap">
+      <button class="auto-btn" id="autoBtn">بدء التسبيح التلقائي (1 ثانية × 100)</button>
+      <span class="auto-note" id="autoNote">جاهز</span>
+    </div>
 
     <div class="counter" id="repeatInfo"></div>
     <div class="tap-hint">اضغط في أي مكان للانتقال إلى التالي</div>
@@ -85,7 +97,7 @@
   <script>
     'use strict';
 
-    /*** أذكار (نص كامل + تكرار مضبوط) ***/
+    /*** النصوص ***/
     const AYAT_AL_KURSI =
 `﴿اللَّهُ لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ﴾ (البقرة: 255)`;
 
@@ -96,7 +108,7 @@
     const NAS =
 `﴿قُلْ أَعُوذُ بِرَبِّ النَّاسِ • مَلِكِ النَّاسِ • إِلَٰهِ النَّاسِ • مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ • الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ • مِنَ الْجِنَّةِ وَالنَّاسِ﴾`;
 
-    // بعض الأذكار تختلف بين الصباح والمساء (أصبحنا/أمسينا، النشور/المصير)
+    /*** القوائم ***/
     const MORNING_LIST = [
       { title:'آية الكرسي', repeat:1, text:AYAT_AL_KURSI, ref:'مرة واحدة' },
 
@@ -139,6 +151,11 @@
       { title:'رضيت بالله ربًّا...', repeat:3,
         text:'رضيتُ بالله ربًّا، وبالإسلام دينًا، وبمحمدٍ ﷺ نبيًّا.',
         ref:'ثلاث مرات' },
+
+      /* أُضيف الذكر 100 مرة في الصباح أيضًا */
+      { title:'سبحان الله وبحمده (100 مرة صباحًا)', repeat:100,
+        text:'سبحان الله وبحمده.',
+        ref:'مائة مرة' },
 
       { title:'ربنا آتنا في الدنيا حسنة...', repeat:1,
         text:'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ.',
@@ -205,8 +222,8 @@
         ref:'مرة واحدة' },
     ];
 
-    /*** Simple state ***/
-    const $ = sel => document.querySelector(sel);
+    /*** عناصر و حالة ***/
+    const $ = s => document.querySelector(s);
     const overlay = $('#overlay');
     const card = $('#card');
     const titleEl = $('#cardTitle');
@@ -222,14 +239,21 @@
     const modeEveningBtn = $('#modeEvening');
     const startBtn = $('#start');
 
-    const LS_KEY = 'adhkar.progress.v1'; // { mode:'morning'|'evening', i, rep }
+    // auto tasbih controls
+    const autoWrap = $('#autoWrap');
+    const autoBtn  = $('#autoBtn');
+    const autoNote = $('#autoNote');
+    let autoTimer = null;
+
+    const LS_KEY = 'adhkar.progress.v1'; // { mode, i, rep }
     let mode = 'morning';
     let list = MORNING_LIST;
-    let i = 0;       // index in list
-    let rep = 1;     // current repetition number for the current item
+    let i = 0;   // index
+    let rep = 1; // repetition for current item
 
-    /*** UI helpers ***/
+    /*** أدوات واجهة ***/
     function setMode(newMode){
+      stopAuto();
       mode = newMode;
       list = (mode === 'morning') ? MORNING_LIST : EVENING_LIST;
       modeMorningBtn.classList.toggle('alt', mode !== 'morning');
@@ -251,52 +275,54 @@
       } catch {}
     }
 
-    function fmtProgress(){ return `${i+1} / ${list.length}`; }
-    function fmtRep(){
-      const total = list[i].repeat || 1;
-      return total > 1 ? `التكرار: ${rep} / ${total}` : '';
-    }
-
-    function openCard(){
-      overlay.style.display = 'block';
-      card.style.display = 'block';
-      renderCard();
-      setTimeout(()=>card.focus(), 0);
-    }
-    function closeCard(){
-      overlay.style.display = 'none';
-      card.style.display = 'none';
-    }
-
+    // Hide duplicated title if text begins with it
     function renderCard(){
       const item = list[i];
-      titleEl.textContent = item.title || 'ذكر';
+      const t = (item.title || '').trim();
+      const x = (item.text  || '').trim();
+      const shouldHideTitle = t && x && x.replace(/\s+/g,' ').startsWith(t.replace(/\s+/g,' '));
+
+      titleEl.textContent = t || 'ذكر';
+      titleEl.style.display = shouldHideTitle ? 'none' : '';
+
       textEl.textContent = item.text || '';
       metaEl.textContent = item.ref || '';
-      progressEl.textContent = fmtProgress();
-      repeatInfo.textContent = fmtRep();
+      progressEl.textContent = `${i+1} / ${list.length}`;
+
+      const total = item.repeat || 1;
+      repeatInfo.textContent = total > 1 ? `التكرار: ${rep} / ${total}` : '';
+
       prevBtn.disabled = (i === 0 && rep === 1);
-      nextBtn.textContent = (i === list.length-1 && rep === (item.repeat||1)) ? 'إنهاء' : 'التالي';
+      nextBtn.textContent = (i === list.length-1 && rep === total) ? 'إنهاء' : 'التالي';
+
+      // Auto tasbih visibility (only for repeat=100)
+      if (total === 100) {
+        autoWrap.style.display = 'flex';
+        autoNote.textContent = autoTimer ? `يعمل… (${rep}/100)` : 'جاهز';
+        autoBtn.textContent  = autoTimer ? 'إيقاف التسبيح التلقائي' : 'بدء التسبيح التلقائي (1 ثانية × 100)';
+        autoBtn.classList.toggle('stop', !!autoTimer);
+      } else {
+        stopAuto();
+        autoWrap.style.display = 'none';
+      }
     }
 
     function next(){
       const item = list[i];
       const total = item.repeat || 1;
-      if(rep < total){ // more repeats for this dhikr
+      if(rep < total){
         rep++;
-      } else { // move to next dhikr
+      } else {
+        stopAuto();
         if(i < list.length - 1){ i++; rep = 1; }
-        else { // done
-          alert('تمت أذكار هذا الوقت. تقبل الله.');
-          closeCard();
-          return;
-        }
+        else { alert('تمت أذكار هذا الوقت. تقبل الله.'); closeCard(); return; }
       }
       saveProgress();
       renderCard();
     }
 
     function prev(){
+      stopAuto();
       if(rep > 1){
         rep--;
       } else if(i > 0){
@@ -306,6 +332,44 @@
       saveProgress();
       renderCard();
     }
+
+    function openCard(){ overlay.style.display='block'; card.style.display='block'; renderCard(); setTimeout(()=>card.focus(),0); }
+    function closeCard(){ stopAuto(); overlay.style.display='none'; card.style.display='none'; }
+
+    // Auto tasbih (1s × 100)
+    function startAuto(){
+      if (autoTimer) return;
+      const total = (list[i].repeat || 1);
+      if (total !== 100) return; // only for 100-repeat items
+      autoTimer = setInterval(()=>{
+        if (rep < total) {
+          rep++;
+          autoNote.textContent = `يعمل… (${rep}/100)`;
+          repeatInfo.textContent = `التكرار: ${rep} / ${total}`;
+        } else {
+          // done -> advance automatically to next item and stop
+          clearInterval(autoTimer); autoTimer=null;
+          next();
+        }
+      }, 1000);
+      renderCard();
+    }
+    function stopAuto(){
+      if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+      if (list && list[i]) {
+        const total = list[i].repeat || 1;
+        if (total === 100) {
+          autoNote.textContent = 'موقوف';
+          autoBtn.textContent  = 'بدء التسبيح التلقائي (1 ثانية × 100)';
+          autoBtn.classList.remove('stop');
+        }
+      }
+    }
+
+    autoBtn.addEventListener('click', ()=>{
+      if (autoTimer) stopAuto(); else startAuto();
+      renderCard();
+    });
 
     /*** Events ***/
     modeMorningBtn.addEventListener('click', ()=> setMode('morning'));
@@ -317,8 +381,7 @@
 
     // Tap/click anywhere in the card to go next (avoid clicking controls)
     card.addEventListener('click', (e)=>{
-      const ctl = e.target.closest('button, nav, header');
-      if(ctl) return;
+      if (e.target.closest('.auto-wrap, .nav, header, button')) return;
       next();
     });
 
