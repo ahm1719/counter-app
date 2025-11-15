@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>أذكار الصباح والمساء</title>
+  <style>
+    :root { --bg:#0b0c10; --card:#1f232b; --text:#e6edf3; --muted:#9aa4b2; --ring:#3ea6ff }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;display:grid;place-items:center}
+
+    .app{width:min(680px,94vw);padding:20px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    h1{margin:0 0 8px;font-size:22px;text-align:center}
+    .desc{margin:4px 0 14px;text-align:center;color:var(--muted);font-size:14px}
+
+    .row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+    .btn{appearance:none;border:0;border-radius:12px;padding:12px 14px;cursor:pointer;font-weight:700;background:#2b313c;color:var(--text)}
+    .btn.primary{background:#213445}
+    .btn.alt{background:#2a3a44}
+    .btn:active{transform:translateY(1px)}
+    .pill{border:1px solid #3a4150}
+    .footer{margin-top:14px;text-align:center}
+    a.link{color:#9bd1ff;text-decoration:none}
+
+    /* Fullscreen Card */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;z-index:999}
+    .card{position:fixed;inset:12px;display:none;z-index:1000;background:#101319;border:1px solid #2a313f;border-radius:16px;padding:18px 16px;overflow:auto}
+    .card-header{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:8px}
+    .card-title{margin:0;font-size:16px;color:#d9e2ef}
+    .x{background:#2b313c;border:0;border-radius:10px;color:#e6edf3;width:40px;height:36px;cursor:pointer}
+    .x:active{transform:translateY(1px)}
+    .progress{font-size:12px;color:#9aa4b2}
+    .text{font-size:18px;line-height:1.9;white-space:pre-wrap;margin:8px 0 10px}
+    .meta{font-size:13px;color:#9aa4b2;margin-bottom:10px}
+    .tap-hint{font-size:12px;color:#9aa4b2; text-align:center; margin-top:8px}
+
+    .nav{display:flex;gap:10px;justify-content:space-between;position:sticky;bottom:0;background:#101319;padding-top:10px}
+    .nav .btn{flex:1}
+    .counter{font-size:12px;color:#9aa4b2;text-align:center;margin-top:4px}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>أذكار الصباح والمساء</h1>
+    <p class="desc">اختر الوقت، ثم ابدأ. ستظهر الأذكار بطاقةً كاملة؛ اضغط داخل البطاقة للانتقال إلى التالي.</p>
+
+    <div class="row" style="justify-content:center;margin-bottom:12px">
+      <button class="btn pill" id="modeMorning">أذكار الصباح</button>
+      <button class="btn pill" id="modeEvening">أذكار المساء</button>
+    </div>
+
+    <div class="row" style="justify-content:center">
+      <button class="btn primary" id="start">ابدأ القراءة</button>
+      <a class="btn alt" href="index.html">العودة للعداد</a>
+    </div>
+
+    <div class="footer">
+      <p style="font-size:12px;color:var(--muted)">يمكنك الإيقاف والمتابعة لاحقًا — سنحفظ تقدّمك على هذا الجهاز.</p>
+    </div>
+  </main>
+
+  <!-- Fullscreen Card (tap to go next) -->
+  <div class="overlay" id="overlay"></div>
+  <section class="card" id="card" tabindex="0" aria-live="polite" aria-atomic="true">
+    <header class="card-header">
+      <div>
+        <h2 class="card-title" id="cardTitle">ذكر</h2>
+        <div class="progress" id="cardProgress">1 / 1</div>
+      </div>
+      <button class="x" id="closeCard" title="إغلاق">✕</button>
+    </header>
+    <article class="text" id="cardText"></article>
+    <div class="meta" id="cardMeta"></div>
+
+    <div class="counter" id="repeatInfo"></div>
+    <div class="tap-hint">اضغط في أي مكان للانتقال إلى التالي</div>
+
+    <nav class="nav">
+      <button class="btn" id="prevBtn" aria-label="السابق">السابق</button>
+      <button class="btn primary" id="nextBtn" aria-label="التالي">التالي</button>
+    </nav>
+  </section>
+
+  <script>
+    'use strict';
+
+    /*** Data ***/
+    // ملاحظة: يمكنك تعديل النصوص أو زيادتها لاحقًا. التكرار repeat = عدد مرات تكرار الذكر قبل الانتقال لما بعده.
+    const MORNING = [
+      { title:'آية الكرسي', repeat:1,
+        text:`﴿اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ...﴾ (البقرة: 255)`,
+        ref:'مرة واحدة' },
+      { title:'المعوذات', repeat:3,
+        text:`سورة الإخلاص • سورة الفلق • سورة الناس`,
+        ref:'ثلاث مرات' },
+      { title:'سيد الاستغفار', repeat:1,
+        text:`اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك...`,
+        ref:'مرة واحدة' },
+      { title:'ذكر عام', repeat:1,
+        text:`اللهم بك أصبحنا وبك أمسينا وبك نحيا وبك نموت وإليك النشور.`,
+        ref:'مرة' },
+    ];
+
+    const EVENING = [
+      { title:'آية الكرسي', repeat:1,
+        text:`﴿اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ...﴾ (البقرة: 255)`,
+        ref:'مرة واحدة' },
+      { title:'المعوذات', repeat:3,
+        text:`سورة الإخلاص • سورة الفلق • سورة الناس`,
+        ref:'ثلاث مرات' },
+      { title:'ذكر عام', repeat:1,
+        text:`اللهم بك أمسينا وبك أصبحنا وبك نحيا وبك نموت وإليك المصير.`,
+        ref:'مرة' },
+    ];
+
+    /*** Simple state ***/
+    const $ = sel => document.querySelector(sel);
+    const overlay = $('#overlay');
+    const card = $('#card');
+    const titleEl = $('#cardTitle');
+    const textEl = $('#cardText');
+    const metaEl = $('#cardMeta');
+    const progressEl = $('#cardProgress');
+    const repeatInfo = $('#repeatInfo');
+    const nextBtn = $('#nextBtn');
+    const prevBtn = $('#prevBtn');
+    const closeBtn = $('#closeCard');
+
+    const modeMorningBtn = $('#modeMorning');
+    const modeEveningBtn = $('#modeEvening');
+    const startBtn = $('#start');
+
+    const LS_KEY = 'adhkar.progress.v1'; // { mode:'morning'|'evening', i, rep }
+    let mode = 'morning';
+    let list = MORNING;
+    let i = 0;       // index in list
+    let rep = 1;     // current repetition number for the current item
+
+    /*** UI helpers ***/
+    function setMode(newMode){
+      mode = newMode;
+      list = (mode === 'morning') ? MORNING : EVENING;
+      // UI highlight
+      modeMorningBtn.classList.toggle('alt', mode !== 'morning');
+      modeEveningBtn.classList.toggle('alt', mode !== 'evening');
+      // Reset session pointers but keep saved progress unless new mode picked
+      i = 0; rep = 1;
+      saveProgress();
+    }
+
+    function saveProgress(){
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify({ mode, i, rep }));
+      } catch {}
+    }
+    function loadProgress(){
+      try {
+        const d = JSON.parse(localStorage.getItem(LS_KEY));
+        if(!d) return;
+        if(d.mode === 'evening'){ setMode('evening'); } else { setMode('morning'); }
+        i = Math.min(Math.max(0, d.i|0), list.length-1);
+        rep = Math.min(Math.max(1, d.rep|0), list[i].repeat || 1);
+      } catch {}
+    }
+
+    function fmtProgress(){
+      return `${i+1} / ${list.length}`;
+    }
+    function fmtRep(){
+      const total = list[i].repeat || 1;
+      return total > 1 ? `التكرار: ${rep} / ${total}` : '';
+    }
+
+    function openCard(){
+      overlay.style.display = 'block';
+      card.style.display = 'block';
+      renderCard();
+      setTimeout(()=>card.focus(), 0);
+    }
+    function closeCard(){
+      overlay.style.display = 'none';
+      card.style.display = 'none';
+    }
+
+    function renderCard(){
+      const item = list[i];
+      titleEl.textContent = item.title || 'ذكر';
+      textEl.textContent = item.text || '';
+      metaEl.textContent = item.ref || '';
+      progressEl.textContent = fmtProgress();
+      repeatInfo.textContent = fmtRep();
+      prevBtn.disabled = (i === 0 && rep === 1);
+      nextBtn.textContent = (i === list.length-1 && rep === (item.repeat||1)) ? 'إنهاء' : 'التالي';
+    }
+
+    function next(){
+      const item = list[i];
+      const total = item.repeat || 1;
+      if(rep < total){ // more repeats for this dhikr
+        rep++;
+      } else { // move to next dhikr
+        if(i < list.length - 1){ i++; rep = 1; }
+        else { // done
+          alert('تمت أذكار هذا الوقت. تقبل الله.');
+          closeCard();
+          return;
+        }
+      }
+      saveProgress();
+      renderCard();
+    }
+
+    function prev(){
+      // go back one repetition or previous item
+      if(rep > 1){
+        rep--;
+      } else if(i > 0){
+        i--;
+        rep = list[i].repeat || 1;
+      }
+      saveProgress();
+      renderCard();
+    }
+
+    /*** Events ***/
+    modeMorningBtn.addEventListener('click', ()=> setMode('morning'));
+    modeEveningBtn.addEventListener('click', ()=> setMode('evening'));
+    startBtn.addEventListener('click', openCard);
+    closeBtn.addEventListener('click', closeCard);
+    nextBtn.addEventListener('click', next);
+    prevBtn.addEventListener('click', prev);
+
+    // Tap/click anywhere in the card to go next (but ignore clicks on controls)
+    card.addEventListener('click', (e)=>{
+      const ctl = e.target.closest('button, nav, header');
+      if(ctl) return; // don't auto-advance when clicking UI controls
+      next();
+    });
+
+    // Keyboard (optional)
+    card.addEventListener('keydown', (e)=>{
+      if(e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' '){ e.preventDefault(); next(); }
+      if(e.key === 'ArrowLeft'){ e.preventDefault(); prev(); }
+      if(e.key === 'Escape'){ e.preventDefault(); closeCard(); }
+    });
+
+    // Init
+    (function(){
+      setMode('morning');
+      loadProgress(); // loads mode and indices if present
+    })();
+  </script>
+</body>
+</html>
