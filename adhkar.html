@@ -21,9 +21,7 @@
     .btn:active{transform:translateY(1px)}
     .pill{border:1px solid #3a4150}
     .footer{margin-top:14px;text-align:center}
-    a.link{color:#9bd1ff;text-decoration:none}
 
-    /* Fullscreen Card */
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;z-index:999}
     .card{position:fixed;inset:12px;display:none;z-index:1000;background:#101319;border:1px solid #2a313f;border-radius:16px;padding:18px 16px;overflow:auto}
     .card-header{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:8px}
@@ -43,6 +41,12 @@
     .nav{display:flex;gap:10px;justify-content:space-between;position:sticky;bottom:0;background:#101319;padding-top:10px}
     .nav .btn{flex:1}
     .counter{font-size:12px;color:#9aa4b2;text-align:center;margin-top:4px}
+
+    /* رسالة إكمال 100 */
+    .done-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:2000}
+    .done-box{background:#1f232b;color:#e6edf3;border-radius:14px;padding:18px 16px;text-align:center;max-width:min(90vw,420px);box-shadow:0 8px 24px rgba(0,0,0,.45)}
+    .done-box h3{margin:0 0 6px;font-size:18px}
+    .done-box p{margin:0;font-size:14px;color:#9aa4b2}
   </style>
 </head>
 <body>
@@ -65,7 +69,6 @@
     </div>
   </main>
 
-  <!-- Fullscreen Card (tap to go next) -->
   <div class="overlay" id="overlay"></div>
   <section class="card" id="card" tabindex="0" aria-live="polite" aria-atomic="true">
     <header class="card-header">
@@ -97,7 +100,7 @@
   <script>
     'use strict';
 
-    /*** النصوص ***/
+    /* النصوص */
     const AYAT_AL_KURSI =
 `﴿اللَّهُ لَا إِلَهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ﴾ (البقرة: 255)`;
 
@@ -108,121 +111,42 @@
     const NAS =
 `﴿قُلْ أَعُوذُ بِرَبِّ النَّاسِ • مَلِكِ النَّاسِ • إِلَٰهِ النَّاسِ • مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ • الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ • مِنَ الْجِنَّةِ وَالنَّاسِ﴾`;
 
-    /*** القوائم ***/
+    /* القوائم */
     const MORNING_LIST = [
       { title:'آية الكرسي', repeat:1, text:AYAT_AL_KURSI, ref:'مرة واحدة' },
-
-      { title:'المعوذات', repeat:3,
-        text:`${IKHLAS}\n\n${FALAQ}\n\n${NAS}`,
-        ref:'ثلاث مرات' },
-
-      { title:'يا حي يا قيوم برحمتك أستغيث', repeat:1,
-        text:'يا حي يا قيوم برحمتك أستغيث، أصلح لي شأني كله، ولا تكلني إلى نفسي طرفة عين.',
-        ref:'مرة واحدة' },
-
-      { title:'اللهم بك أصبحنا...', repeat:1,
-        text:'اللهم بك أصبحنا وبك أمسينا، وبك نحيا وبك نموت وإليك النشور.',
-        ref:'مرة واحدة' },
-
-      { title:'سبحان الله وبحمده، عدد خلقه...', repeat:3,
-        text:'سبحان الله وبحمده، عدد خلقه، ورضا نفسه، وزنة عرشه، ومداد كلماته.',
-        ref:'ثلاث مرات' },
-
-      { title:'أعوذ بكلمات الله التامات...', repeat:3,
-        text:'أعوذ بكلماتِ اللهِ التَّامَّاتِ من شرِّ ما خلق.',
-        ref:'ثلاث مرات' },
-
-      { title:'اللهم عافني في بدني...', repeat:3,
-        text:'اللهم عافِني في بدني، اللهم عافِني في سمعي، اللهم عافِني في بصري، لا إله إلا أنت.',
-        ref:'ثلاث مرات' },
-
-      { title:'اللهم إني أسألك العفو والعافية...', repeat:1,
-        text:'اللهم إني أسألك العفو والعافية في الدنيا والآخرة.',
-        ref:'مرة واحدة' },
-
-      { title:'اللهم ما أصبح بي من نعمة...', repeat:1,
-        text:'اللهم ما أصبحَ بي من نعمةٍ أو بأحدٍ من خلقِك فمنك وحدك لا شريك لك، فلك الحمد ولك الشكر.',
-        ref:'مرة واحدة' },
-
-      { title:'بسم الله الذي لا يضر...', repeat:3,
-        text:'بسمِ اللهِ الذي لا يضرُّ مع اسمِه شيءٌ في الأرضِ ولا في السماءِ وهو السميعُ العليم.',
-        ref:'ثلاث مرات' },
-
-      { title:'رضيت بالله ربًّا...', repeat:3,
-        text:'رضيتُ بالله ربًّا، وبالإسلام دينًا، وبمحمدٍ ﷺ نبيًّا.',
-        ref:'ثلاث مرات' },
-
-      /* أُضيف الذكر 100 مرة في الصباح أيضًا */
-      { title:'سبحان الله وبحمده (100 مرة صباحًا)', repeat:100,
-        text:'سبحان الله وبحمده.',
-        ref:'مائة مرة' },
-
-      { title:'ربنا آتنا في الدنيا حسنة...', repeat:1,
-        text:'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ.',
-        ref:'مرة واحدة' },
-
-      { title:'سيد الاستغفار', repeat:1,
-        text:'اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت، أبوء لك بنعمتك عليَّ، وأبوء بذنبي، فاغفر لي؛ فإنه لا يغفر الذنوب إلا أنت.',
-        ref:'مرة واحدة' },
+      { title:'المعوذات', repeat:3, text:`${IKHLAS}\n\n${FALAQ}\n\n${NAS}`, ref:'ثلاث مرات' },
+      { title:'يا حي يا قيوم برحمتك أستغيث', repeat:1, text:'يا حي يا قيوم برحمتك أستغيث، أصلح لي شأني كله، ولا تكلني إلى نفسي طرفة عين.', ref:'مرة واحدة' },
+      { title:'اللهم بك أصبحنا...', repeat:1, text:'اللهم بك أصبحنا وبك أمسينا، وبك نحيا وبك نموت وإليك النشور.', ref:'مرة واحدة' },
+      { title:'سبحان الله وبحمده، عدد خلقه...', repeat:3, text:'سبحان الله وبحمده، عدد خلقه، ورضا نفسه، وزنة عرشه، ومداد كلماته.', ref:'ثلاث مرات' },
+      { title:'أعوذ بكلمات الله التامات...', repeat:3, text:'أعوذ بكلماتِ اللهِ التَّامَّاتِ من شرِّ ما خلق.', ref:'ثلاث مرات' },
+      { title:'اللهم عافني في بدني...', repeat:3, text:'اللهم عافِني في بدني، اللهم عافِني في سمعي، اللهم عافِني في بصري، لا إله إلا أنت.', ref:'ثلاث مرات' },
+      { title:'اللهم إني أسألك العفو والعافية...', repeat:1, text:'اللهم إني أسألك العفو والعافية في الدنيا والآخرة.', ref:'مرة واحدة' },
+      { title:'اللهم ما أصبح بي من نعمة...', repeat:1, text:'اللهم ما أصبحَ بي من نعمةٍ أو بأحدٍ من خلقِك فمنك وحدك لا شريك لك، فلك الحمد ولك الشكر.', ref:'مرة واحدة' },
+      { title:'بسم الله الذي لا يضر...', repeat:3, text:'بسمِ اللهِ الذي لا يضرُّ مع اسمِه شيءٌ في الأرضِ ولا في السماءِ وهو السميعُ العليم.', ref:'ثلاث مرات' },
+      { title:'رضيت بالله ربًّا...', repeat:3, text:'رضيتُ بالله ربًّا، وبالإسلام دينًا، وبمحمدٍ ﷺ نبيًّا.', ref:'ثلاث مرات' },
+      /* 12/14 */
+      { title:'سبحان الله وبحمده (100 مرة صباحًا)', repeat:100, text:'سبحان الله وبحمده.', ref:'مائة مرة' },
+      { title:'ربنا آتنا في الدنيا حسنة...', repeat:1, text:'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ.', ref:'مرة واحدة' },
+      { title:'سيد الاستغفار', repeat:1, text:'اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت، أبوء لك بنعمتك عليَّ، وأبوء بذنبي، فاغفر لي؛ فإنه لا يغفر الذنوب إلا أنت.', ref:'مرة واحدة' },
     ];
 
     const EVENING_LIST = [
       { title:'آية الكرسي', repeat:1, text:AYAT_AL_KURSI, ref:'مرة واحدة' },
-
-      { title:'المعوذات', repeat:3,
-        text:`${IKHLAS}\n\n${FALAQ}\n\n${NAS}`,
-        ref:'ثلاث مرات' },
-
-      { title:'يا حي يا قيوم برحمتك أستغيث', repeat:1,
-        text:'يا حي يا قيوم برحمتك أستغيث، أصلح لي شأني كله، ولا تكلني إلى نفسي طرفة عين.',
-        ref:'مرة واحدة' },
-
-      { title:'اللهم بك أمسينا...', repeat:1,
-        text:'اللهم بك أمسينا وبك أصبحنا، وبك نحيا وبك نموت وإليك المصير.',
-        ref:'مرة واحدة' },
-
-      { title:'سبحان الله وبحمده، عدد خلقه...', repeat:3,
-        text:'سبحان الله وبحمده، عدد خلقه، ورضا نفسه، وزنة عرشه، ومداد كلماته.',
-        ref:'ثلاث مرات' },
-
-      { title:'أعوذ بكلمات الله التامات...', repeat:3,
-        text:'أعوذ بكلماتِ اللهِ التَّامَّاتِ من شرِّ ما خلق.',
-        ref:'ثلاث مرات' },
-
-      { title:'اللهم عافني في بدني...', repeat:3,
-        text:'اللهم عافِني في بدني، اللهم عافِني في سمعي، اللهم عافِني في بصري، لا إله إلا أنت.',
-        ref:'ثلاث مرات' },
-
-      { title:'اللهم إني أسألك العفو والعافية...', repeat:1,
-        text:'اللهم إني أسألك العفو والعافية في الدنيا والآخرة.',
-        ref:'مرة واحدة' },
-
-      { title:'اللهم ما أمسى بي من نعمة...', repeat:1,
-        text:'اللهم ما أمسى بي من نعمةٍ أو بأحدٍ من خلقِك فمنك وحدك لا شريك لك، فلك الحمد ولك الشكر.',
-        ref:'مرة واحدة' },
-
-      { title:'بسم الله الذي لا يضر...', repeat:3,
-        text:'بسمِ اللهِ الذي لا يضرُّ مع اسمِه شيءٌ في الأرضِ ولا في السماءِ وهو السميعُ العليم.',
-        ref:'ثلاث مرات' },
-
-      { title:'رضيت بالله ربًّا...', repeat:3,
-        text:'رضيتُ بالله ربًّا، وبالإسلام دينًا، وبمحمدٍ ﷺ نبيًّا.',
-        ref:'ثلاث مرات' },
-
-      { title:'سبحان الله وبحمده (100 مرة مساءً)', repeat:100,
-        text:'سبحان الله وبحمده.',
-        ref:'مائة مرة — «غُفرت خطاياه ولو كانت مثل زبد البحر»' },
-
-      { title:'ربنا آتنا في الدنيا حسنة...', repeat:1,
-        text:'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ.',
-        ref:'مرة واحدة' },
-
-      { title:'سيد الاستغفار', repeat:1,
-        text:'اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت، أبوء لك بنعمتك عليَّ، وأبوء بذنبي، فاغفر لي؛ فإنه لا يغفر الذنوب إلا أنت.',
-        ref:'مرة واحدة' },
+      { title:'المعوذات', repeat:3, text:`${IKHLAS}\n\n${FALAQ}\n\n${NAS}`, ref:'ثلاث مرات' },
+      { title:'يا حي يا قيوم برحمتك أستغيث', repeat:1, text:'يا حي يا قيوم برحمتك أستغيث، أصلح لي شأني كله، ولا تكلني إلى نفسي طرفة عين.', ref:'مرة واحدة' },
+      { title:'اللهم بك أمسينا...', repeat:1, text:'اللهم بك أمسينا وبك أصبحنا، وبك نحيا وبك نموت وإليك المصير.', ref:'مرة واحدة' },
+      { title:'سبحان الله وبحمده، عدد خلقه...', repeat:3, text:'سبحان الله وبحمده، عدد خلقه، ورضا نفسه، وزنة عرشه، ومداد كلماته.', ref:'ثلاث مرات' },
+      { title:'أعوذ بكلمات الله التامات...', repeat:3, text:'أعوذ بكلماتِ اللهِ التَّامَّاتِ من شرِّ ما خلق.', ref:'ثلاث مرات' },
+      { title:'اللهم عافني في بدني...', repeat:3, text:'اللهم عافِني في بدني، اللهم عافِني في سمعي، اللهم عافِني في بصري، لا إله إلا أنت.', ref:'ثلاث مرات' },
+      { title:'اللهم إني أسألك العفو والعافية...', repeat:1, text:'اللهم إني أسألك العفو والعافية في الدنيا والآخرة.', ref:'مرة واحدة' },
+      { title:'اللهم ما أمسى بي من نعمة...', repeat:1, text:'اللهم ما أمسى بي من نعمةٍ أو بأحدٍ من خلقِك فمنك وحدك لا شريك لك، فلك الحمد ولك الشكر.', ref:'مرة واحدة' },
+      { title:'بسم الله الذي لا يضر...', repeat:3, text:'بسمِ اللهِ الذي لا يضرُّ مع اسمِه شيءٌ في الأرضِ ولا في السماءِ وهو السميعُ العليم.', ref:'ثلاث مرات' },
+      { title:'رضيت بالله ربًّا...', repeat:3, text:'رضيتُ بالله ربًّا، وبالإسلام دينًا، وبمحمدٍ ﷺ نبيًّا.', ref:'ثلاث مرات' },
+      { title:'سبحان الله وبحمده (100 مرة مساءً)', repeat:100, text:'سبحان الله وبحمده.', ref:'مائة مرة — «غُفرت خطاياه ولو كانت مثل زبد البحر»' },
+      { title:'ربنا آتنا في الدنيا حسنة...', repeat:1, text:'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ.', ref:'مرة واحدة' },
+      { title:'سيد الاستغفار', repeat:1, text:'اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت، أبوء لك بنعمتك عليَّ، وأبوء بذنبي، فاغفر لي؛ فإنه لا يغفر الذنوب إلا أنت.', ref:'مرة واحدة' },
     ];
 
-    /*** عناصر و حالة ***/
     const $ = s => document.querySelector(s);
     const overlay = $('#overlay');
     const card = $('#card');
@@ -234,169 +158,183 @@
     const nextBtn = $('#nextBtn');
     const prevBtn = $('#prevBtn');
     const closeBtn = $('#closeCard');
-
     const modeMorningBtn = $('#modeMorning');
     const modeEveningBtn = $('#modeEvening');
     const startBtn = $('#start');
 
-    // auto tasbih controls
+    // auto tasbih
     const autoWrap = $('#autoWrap');
     const autoBtn  = $('#autoBtn');
     const autoNote = $('#autoNote');
     let autoTimer = null;
 
-    const LS_KEY = 'adhkar.progress.v1'; // { mode, i, rep }
+    const LS_KEY = 'adhkar.progress.v1';
     let mode = 'morning';
     let list = MORNING_LIST;
-    let i = 0;   // index
-    let rep = 1; // repetition for current item
+    let i = 0;
+    let rep = 1;
 
-    /*** أدوات واجهة ***/
     function setMode(newMode){
       stopAuto();
       mode = newMode;
       list = (mode === 'morning') ? MORNING_LIST : EVENING_LIST;
       modeMorningBtn.classList.toggle('alt', mode !== 'morning');
       modeEveningBtn.classList.toggle('alt', mode !== 'evening');
-      i = 0; rep = 1;
-      saveProgress();
+      i = 0; rep = 1; saveProgress();
     }
-
-    function saveProgress(){
-      try { localStorage.setItem(LS_KEY, JSON.stringify({ mode, i, rep })); } catch {}
-    }
+    function saveProgress(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({mode,i,rep})); }catch{} }
     function loadProgress(){
-      try {
-        const d = JSON.parse(localStorage.getItem(LS_KEY));
+      try{
+        const d=JSON.parse(localStorage.getItem(LS_KEY));
         if(!d) return;
-        if(d.mode === 'evening'){ setMode('evening'); } else { setMode('morning'); }
-        i = Math.min(Math.max(0, d.i|0), list.length-1);
-        rep = Math.min(Math.max(1, d.rep|0), list[i].repeat || 1);
-      } catch {}
+        setMode(d.mode==='evening'?'evening':'morning');
+        i=Math.min(Math.max(0,d.i|0), list.length-1);
+        rep=Math.min(Math.max(1,d.rep|0), (list[i].repeat||1));
+      }catch{}
     }
 
-    // Hide duplicated title if text begins with it
     function renderCard(){
       const item = list[i];
-      const t = (item.title || '').trim();
-      const x = (item.text  || '').trim();
-      const shouldHideTitle = t && x && x.replace(/\s+/g,' ').startsWith(t.replace(/\s+/g,' '));
+      const t = (item.title||'').trim();
+      const x = (item.text||'').trim();
+      const hideTitle = t && x && x.replace(/\s+/g,' ').startsWith(t.replace(/\s+/g,' '));
 
       titleEl.textContent = t || 'ذكر';
-      titleEl.style.display = shouldHideTitle ? 'none' : '';
+      titleEl.style.display = hideTitle ? 'none' : '';
 
       textEl.textContent = item.text || '';
       metaEl.textContent = item.ref || '';
       progressEl.textContent = `${i+1} / ${list.length}`;
 
       const total = item.repeat || 1;
-      repeatInfo.textContent = total > 1 ? `التكرار: ${rep} / ${total}` : '';
+      repeatInfo.textContent = total>1 ? `التكرار: ${rep} / ${total}` : '';
 
-      prevBtn.disabled = (i === 0 && rep === 1);
-      nextBtn.textContent = (i === list.length-1 && rep === total) ? 'إنهاء' : 'التالي';
+      prevBtn.disabled = (i===0 && rep===1);
+      nextBtn.textContent = (i===list.length-1 && rep===total) ? 'إنهاء' : 'التالي';
 
-      // Auto tasbih visibility (only for repeat=100)
-      if (total === 100) {
-        autoWrap.style.display = 'flex';
+      if(total===100){
+        autoWrap.style.display='flex';
         autoNote.textContent = autoTimer ? `يعمل… (${rep}/100)` : 'جاهز';
         autoBtn.textContent  = autoTimer ? 'إيقاف التسبيح التلقائي' : 'بدء التسبيح التلقائي (1 ثانية × 100)';
         autoBtn.classList.toggle('stop', !!autoTimer);
       } else {
         stopAuto();
-        autoWrap.style.display = 'none';
+        autoWrap.style.display='none';
       }
     }
 
+    // السلوك الافتراضي: next يزيد التكرار أو ينتقل للبطاقة التالية عند اكتمال التكرار
     function next(){
-      const item = list[i];
-      const total = item.repeat || 1;
-      if(rep < total){
-        rep++;
-      } else {
+      const item=list[i], total=item.repeat||1;
+      if(rep<total){ rep++; }
+      else{
         stopAuto();
-        if(i < list.length - 1){ i++; rep = 1; }
-        else { alert('تمت أذكار هذا الوقت. تقبل الله.'); closeCard(); return; }
+        if(i<list.length-1){ i++; rep=1; }
+        else{ alert('تمت أذكار هذا الوقت. تقبل الله.'); closeCard(); return; }
       }
-      saveProgress();
-      renderCard();
+      saveProgress(); renderCard();
     }
-
     function prev(){
       stopAuto();
-      if(rep > 1){
-        rep--;
-      } else if(i > 0){
-        i--;
-        rep = list[i].repeat || 1;
+      if(rep>1){ rep--; }
+      else if(i>0){ i--; rep=list[i].repeat||1; }
+      saveProgress(); renderCard();
+    }
+
+    // المطلوب: عندما total=100 تعمل الأزرار لتغيير البطاقة مباشرة لا التكرار
+    function nextButton(){
+      const total=(list[i].repeat||1);
+      if(total===100){
+        stopAuto();
+        if(i<list.length-1){ i++; rep=1; saveProgress(); renderCard(); }
+        else{ alert('تمت أذكار هذا الوقت. تقبل الله.'); closeCard(); }
+      } else {
+        next();
       }
-      saveProgress();
-      renderCard();
+    }
+    function prevButton(){
+      const total=(list[i].repeat||1);
+      if(total===100){
+        stopAuto();
+        if(i>0){ i--; rep=list[i].repeat||1; saveProgress(); renderCard(); }
+      } else {
+        prev();
+      }
     }
 
     function openCard(){ overlay.style.display='block'; card.style.display='block'; renderCard(); setTimeout(()=>card.focus(),0); }
     function closeCard(){ stopAuto(); overlay.style.display='none'; card.style.display='none'; }
 
-    // Auto tasbih (1s × 100)
+    // رسالة إكمال 100 (تُغلق بالنقر في أي مكان)
+    function showDoneMessage(){
+      const ov=document.createElement('div');
+      ov.className='done-ov';
+      const box=document.createElement('div');
+      box.className='done-box';
+      box.innerHTML='<h3>اكتمل العدد (100)</h3><p>انقر في أي مكان لإغلاق هذه الرسالة.</p>';
+      ov.appendChild(box);
+      ov.addEventListener('click', ()=>{ document.body.removeChild(ov); }, {once:true});
+      document.body.appendChild(ov);
+    }
+
+    // التسبيح التلقائي: 1 ثانية × 100 — عند الاكتمال تعرض رسالة ولا تنتقل تلقائياً
     function startAuto(){
-      if (autoTimer) return;
-      const total = (list[i].repeat || 1);
-      if (total !== 100) return; // only for 100-repeat items
-      autoTimer = setInterval(()=>{
-        if (rep < total) {
+      if(autoTimer) return;
+      const total=(list[i].repeat||1);
+      if(total!==100) return;
+      autoTimer=setInterval(()=>{
+        if(rep<total){
           rep++;
-          autoNote.textContent = `يعمل… (${rep}/100)`;
-          repeatInfo.textContent = `التكرار: ${rep} / ${total}`;
-        } else {
-          // done -> advance automatically to next item and stop
+          autoNote.textContent=`يعمل… (${rep}/100)`;
+          repeatInfo.textContent=`التكرار: ${rep} / ${total}`;
+        }else{
           clearInterval(autoTimer); autoTimer=null;
-          next();
+          // لا انتقال تلقائي — فقط رسالة
+          showDoneMessage();
+          autoNote.textContent='اكتمل (100/100)';
+          autoBtn.textContent='بدء التسبيح التلقائي (1 ثانية × 100)';
+          autoBtn.classList.remove('stop');
         }
-      }, 1000);
+      },1000);
       renderCard();
     }
     function stopAuto(){
       if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
-      if (list && list[i]) {
-        const total = list[i].repeat || 1;
-        if (total === 100) {
-          autoNote.textContent = 'موقوف';
-          autoBtn.textContent  = 'بدء التسبيح التلقائي (1 ثانية × 100)';
+      if(list && list[i]){
+        const total=list[i].repeat||1;
+        if(total===100){
+          autoNote.textContent='موقوف';
+          autoBtn.textContent='بدء التسبيح التلقائي (1 ثانية × 100)';
           autoBtn.classList.remove('stop');
         }
       }
     }
+    autoBtn.addEventListener('click', ()=>{ if(autoTimer) stopAuto(); else startAuto(); renderCard(); });
 
-    autoBtn.addEventListener('click', ()=>{
-      if (autoTimer) stopAuto(); else startAuto();
-      renderCard();
-    });
-
-    /*** Events ***/
+    /* أحداث */
     modeMorningBtn.addEventListener('click', ()=> setMode('morning'));
     modeEveningBtn.addEventListener('click', ()=> setMode('evening'));
     startBtn.addEventListener('click', openCard);
     closeBtn.addEventListener('click', closeCard);
-    nextBtn.addEventListener('click', next);
-    prevBtn.addEventListener('click', prev);
 
-    // Tap/click anywhere in the card to go next (avoid clicking controls)
+    // الأزرار تستخدم السلوك الخاص لبطاقة 100
+    nextBtn.addEventListener('click', nextButton);
+    prevBtn.addEventListener('click', prevButton);
+
+    // النقر داخل البطاقة (بعيدًا عن الأزرار) ما زال يذهب إلى "التالي" الافتراضي
     card.addEventListener('click', (e)=>{
       if (e.target.closest('.auto-wrap, .nav, header, button')) return;
       next();
     });
 
-    // Keyboard (optional)
+    // لوحة المفاتيح
     card.addEventListener('keydown', (e)=>{
-      if(e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' '){ e.preventDefault(); next(); }
-      if(e.key === 'ArrowLeft'){ e.preventDefault(); prev(); }
-      if(e.key === 'Escape'){ e.preventDefault(); closeCard(); }
+      if(e.key==='ArrowRight' || e.key==='Enter' || e.key===' '){ e.preventDefault(); nextButton(); }
+      if(e.key==='ArrowLeft'){ e.preventDefault(); prevButton(); }
+      if(e.key==='Escape'){ e.preventDefault(); closeCard(); }
     });
 
-    // Init
-    (function(){
-      setMode('morning');
-      loadProgress();
-    })();
+    (function(){ setMode('morning'); loadProgress(); })();
   </script>
 </body>
 </html>
