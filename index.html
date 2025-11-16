@@ -1,179 +1,260 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>العداد الذكي للأذكار</title>
-<style>
-  body {
-    font-family: "Tajawal", sans-serif;
-    background-color: #11141a;
-    color: #e4e4e4;
-    text-align: center;
-    margin: 0;
-    padding: 0;
-  }
-  .app {
-    margin: 30px auto;
-    max-width: 400px;
-    padding: 20px;
-    background: #1b1f25;
-    border-radius: 15px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.4);
-  }
-  h1 {
-    margin-bottom: 20px;
-  }
-  .counter {
-    margin: 20px 0;
-    font-size: 2.5em;
-    border: 3px solid #0078d7;
-    border-radius: 50%;
-    width: 120px;
-    height: 120px;
-    line-height: 120px;
-    margin-inline: auto;
-    position: relative;
-    user-select: none;
-  }
-  button {
-    padding: 10px 20px;
-    border: none;
-    margin: 5px;
-    border-radius: 8px;
-    background: #0078d7;
-    color: white;
-    font-size: 1em;
-    cursor: pointer;
-  }
-  button:hover { background: #0a84ff; }
-  button.active { background: #145ea8; }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>العداد الذكي للأذكار</title>
+  <style>
+    :root{--bg:#0b0c10;--card:#1f232b;--ink:#e6edf3;--muted:#9aa4b2;--accent:#2d6cdf;--accent2:#3ea6ff}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial}
+    .app{width:min(680px,94vw);margin:24px auto;padding:18px;background:var(--card);border-radius:16px}
+    h1{margin:0 0 12px;text-align:center;font-size:20px}
 
-  .limit-container {
-    background: #222831;
-    padding: 10px;
-    border-radius: 10px;
-    margin-top: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
+    .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .btn{appearance:none;border:0;border-radius:10px;padding:10px 14px;background:#2b313c;color:var(--ink);cursor:pointer;font-weight:700}
+    .btn.primary{background:#213445}
+    .btn.active{outline:2px solid var(--accent2)}
+    .btn:active{transform:translateY(1px)}
+    .pill{border:1px solid #3a4150}
 
-  input[type=range] {
-    width: 150px;
-  }
+    /* counter circle */
+    .counter-wrap{display:grid;place-items:center;margin:10px 0 6px}
+    canvas{width:150px;height:150px}
+    .count-number{position:absolute;font-size:42px;font-weight:800;user-select:none}
 
-  select {
-    padding: 6px;
-    border-radius: 6px;
-    border: none;
-    background: #2b3038;
-    color: #fff;
-  }
-</style>
+    .center-row{display:flex;gap:8px;justify-content:center;align-items:center;margin:6px 0}
+
+    /* limit block */
+    .limit{margin-top:10px;padding:10px;border-radius:12px;background:#202530;display:flex;align-items:center;gap:10px;justify-content:center}
+    .limit label{color:var(--muted)}
+    input[type=range]{width:220px}
+    select{background:#2a303a;color:var(--ink);border:1px solid #3a4150;border-radius:8px;padding:6px 10px}
+
+    .eta{margin-top:8px;text-align:center;color:var(--muted);font-size:13px}
+    .msg{margin-top:6px;text-align:center;color:#ffd27a;font-size:13px;min-height:18px}
+
+    /* small modal */
+    .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:1000}
+    .box{background:#11151c;color:var(--ink);border:1px solid #324255;border-radius:14px;padding:16px 14px;width:min(92vw,360px);text-align:center}
+    .box .btn{margin:4px}
+  </style>
 </head>
 <body>
-<main class="app">
-  <div style="text-align:center; margin-bottom:12px;">
-    <img src="FullLogo.jpg" alt="Athkar Hub Logo"
-         style="width:160px; max-width:60%; border-radius:12px; opacity:0.9;">
-  </div>
+  <main class="app">
+    <h1>العداد الذكي للأذكار</h1>
 
-  <h1>العداد الذكي للأذكار</h1>
+    <!-- Presets row (includes built-ins + user presets) -->
+    <div class="row" id="presetRow" style="justify-content:center;margin-bottom:8px"></div>
+    <div class="row" style="justify-content:center;margin-bottom:8px">
+      <button class="btn pill" id="addPresetBtn">إضافة</button>
+      <button class="btn pill" id="editPresetBtn">تحرير</button>
+    </div>
 
-  <div id="presets"></div>
+    <!-- Counter + ring -->
+    <div class="counter-wrap" style="position:relative">
+      <canvas id="ring" width="220" height="220" aria-hidden="true"></canvas>
+      <div class="count-number" id="count">0</div>
+    </div>
 
-  <div class="counter">
-    <span id="count">0</span>
-  </div>
+    <!-- manual - / start / stop / +  -->
+    <div class="center-row">
+      <button class="btn" id="manualMinus">−</button>
+      <button class="btn primary" id="start">ابدأ</button>
+      <button class="btn" id="stop">إيقاف</button>
+      <button class="btn" id="manualPlus">+</button>
+    </div>
 
-  <div>
-    <button id="minusBtn">−</button>
-    <button id="start">ابدأ</button>
-    <button id="stop">إيقاف</button>
-    <button id="plusBtn">+</button>
-  </div>
+    <!-- interval -->
+    <div class="center-row">
+      <label for="interval">الفاصل:</label>
+      <select id="interval">
+        <option value="1" selected>1 ثانية</option>
+        <option value="2">2 ثانية</option>
+        <option value="3">3 ثوانٍ</option>
+        <option value="4">4 ثوانٍ</option>
+        <option value="5">5 ثوانٍ</option>
+        <option value="6">6 ثوانٍ</option>
+        <option value="7">7 ثوانٍ</option>
+        <option value="8">8 ثوانٍ</option>
+        <option value="9">9 ثوانٍ</option>
+        <option value="10">10 ثوانٍ</option>
+      </select>
+    </div>
 
-  <div class="limit-container">
-    <span id="limitLabel">(0 = بدون حد)</span>
-    <input type="range" id="limit" min="0" max="100" value="0">
-    <button id="limitPlus">+</button>
-    <button id="limitMinus">−</button>
-  </div>
+    <!-- limit slider + +/- -->
+    <div class="limit">
+      <label id="limitLabel">(الحد = بدون حد)</label>
+      <button class="btn" id="limitMinus">−</button>
+      <input type="range" id="limit" min="0" max="100" value="0" />
+      <button class="btn" id="limitPlus">+</button>
+    </div>
 
-  <div style="margin-top:10px;">
-    <label>الفاصل الزمني:</label>
-    <select id="interval">
-      <option value="1">1 ثانية</option>
-      <option value="2">2 ثانية</option>
-      <option value="3">3 ثواني</option>
-      <option value="4">4 ثواني</option>
-      <option value="5">5 ثواني</option>
-    </select>
-  </div>
+    <div class="eta" id="eta"></div>
+    <div class="msg" id="msg"></div>
 
-  <p id="eta" style="margin-top:15px; opacity:0.8;"></p>
-</main>
+    <div class="row" style="justify-content:center;margin-top:10px">
+      <a class="btn pill" href="adhkar.html">أذكار الصباح والمساء</a>
+    </div>
+  </main>
 
-<script>
-let count=0, limit=0, intervalSec=1, running=false, intervalId=null;
-const $count=document.getElementById("count");
-const $limit=document.getElementById("limit");
-const $limitLabel=document.getElementById("limitLabel");
-const $interval=document.getElementById("interval");
-const $start=document.getElementById("start");
-const $stop=document.getElementById("stop");
-const $eta=document.getElementById("eta");
-const audio=new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+  <script>
+  'use strict';
 
-function updateLabel(){
-  $count.textContent=count;
-  $limitLabel.textContent = `(الحد = ${limit==0?"بدون حد":limit})`;
-}
+  /* ---------- State ---------- */
+  let count=0, limit=0, intervalSec=1;
+  let running=false, rafId=null, lastAccountedMs=null, remainderMs=0;
+  const bell=new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
 
-function refreshETA(){
-  if(limit>0 && count<limit){
-    const remain=limit-count;
-    const sec=remain*intervalSec;
-    $eta.textContent = `الوقت المتبقي التقريبي: ${Math.floor(sec/60)} دقيقة و ${sec%60} ثانية`;
-  } else $eta.textContent="";
-}
+  /* ---------- Elements ---------- */
+  const $=s=>document.querySelector(s);
+  const $count=$('#count'), $eta=$('#eta'), $msg=$('#msg');
+  const $interval=$('#interval'), $limit=$('#limit'), $limitLabel=$('#limitLabel');
+  const $start=$('#start'), $stop=$('#stop');
+  const $manualPlus=$('#manualPlus'), $manualMinus=$('#manualMinus');
+  const $limitPlus=$('#limitPlus'), $limitMinus=$('#limitMinus');
+  const ctx=$('#ring').getContext('2d');
 
-function start(){
-  if(running) return;
-  running=true;
-  $start.classList.add("active");
-  intervalSec=parseInt($interval.value);
-  intervalId=setInterval(()=>{
-    if(limit>0 && count>=limit){
-      stop();
-      audio.play();
-      alert("تم الوصول إلى الحد!");
+  /* ---------- Presets (built-ins + user) ---------- */
+  const BUILT_INS=[
+    {label:'سبحان الله وبحمده', i:1, l:100},
+    {label:'لا إله إلا أنت سبحانك إني كنت من الظالمين', i:3, l:100},
+    {label:'لا إله إلا الله وحده لا شريك له، له الملك...', i:4, l:100},
+  ];
+  const LS_PRESETS='counter.presets.v3';
+  function loadUserPresets(){ try{ return JSON.parse(localStorage.getItem(LS_PRESETS))||[] }catch{ return [] } }
+  function saveUserPresets(list){ try{ localStorage.setItem(LS_PRESETS, JSON.stringify(list)); }catch{} }
+  function renderPresets(){
+    const row=$('#presetRow'); row.innerHTML='';
+    [...BUILT_INS, ...loadUserPresets()].forEach((p,idx)=>{
+      const b=document.createElement('button');
+      b.className='btn pill';
+      b.textContent=p.label.length>22? p.label.slice(0,22)+'…' : p.label;
+      b.title=p.label;
+      b.onclick=()=> applyPreset(p);
+      row.appendChild(b);
+    });
+  }
+  function applyPreset(p){
+    // No prompt here (to avoid duplicate with Start). Just set values.
+    $interval.value=String(Math.max(1,Math.min(10, p.i||1)));
+    $limit.value=String(Math.max(0,Math.min(100, p.l||0)));
+    onLimitInput();
+    refreshETA();
+  }
+  // Add / Edit preset UIs (simple prompts; baseline kept)
+  $('#addPresetBtn').onclick=()=>{
+    const label=prompt('اسم التلاوة/الذكر (سيظهر كزر):');
+    if(!label) return;
+    const i=parseInt(prompt('الفاصل بالثواني (1–10):','3')||'3',10);
+    const l=parseInt(prompt('الحد (0–100، 0 = بدون حد):','100')||'100',10);
+    const list=loadUserPresets(); list.push({label,i,l}); saveUserPresets(list); renderPresets();
+  };
+  $('#editPresetBtn').onclick=()=>{
+    const list=loadUserPresets(); if(!list.length){ alert('لا توجد إضافات مخصصة.'); return; }
+    const names=list.map((p,idx)=>`${idx+1}. ${p.label}`).join('\n');
+    const sel=parseInt(prompt('اختر رقم العنصر لتعديله:\n'+names)||'0',10);
+    if(!(sel>=1 && sel<=list.length)) return;
+    const it=list[sel-1];
+    const label=prompt('الاسم:', it.label)||it.label;
+    const i=parseInt(prompt('الفاصل (1–10):', String(it.i))||String(it.i),10);
+    const l=parseInt(prompt('الحد (0–100):', String(it.l))||String(it.l),10);
+    list[sel-1]={label,i,l}; saveUserPresets(list); renderPresets();
+  };
+
+  /* ---------- Drawing ---------- */
+  function drawProgress(frac){
+    const w=220,h=220, cx=w/2, cy=h/2, r=90;
+    ctx.clearRect(0,0,w,h);
+    // back ring
+    ctx.lineWidth=14; ctx.strokeStyle='#2b3340';
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+    // front
+    ctx.strokeStyle='#3ea6ff';
+    ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2, -Math.PI/2 + Math.PI*2*frac, false); ctx.stroke();
+  }
+
+  /* ---------- Helpers ---------- */
+  function updateLabel(){ $count.textContent=count; }
+  function refreshETA(){
+    if(limit>0 && count<limit){
+      const remain=limit-count, sec=remain*intervalSec;
+      const m=Math.floor(sec/60), s=sec%60;
+      $eta.textContent=`الوقت المتبقي التقريبي: ${m} دقيقة و ${s} ثانية`;
+    }else{$eta.textContent='';}
+  }
+  function onLimitInput(){
+    limit=parseInt($limit.value||'0',10);
+    $limitLabel.textContent = `(الحد = ${limit===0?'بدون حد':limit})`;
+  }
+
+  /* ---------- Start/Stop loop (RAF, no extra threads) ---------- */
+  function loop(){
+    if(!running){ rafId=null; return; }
+    const now=Date.now();
+    if(lastAccountedMs==null) lastAccountedMs=now;
+    const elapsed=now - lastAccountedMs + remainderMs;
+    const stepMs=intervalSec*1000;
+    // ring fill 0..1
+    drawProgress( Math.min(1, (elapsed%stepMs)/stepMs) );
+
+    if(elapsed>=stepMs){
+      const steps=Math.floor(elapsed/stepMs);
+      lastAccountedMs=now;
+      remainderMs=elapsed - steps*stepMs;
+      for(let k=0;k<steps;k++){
+        if(limit>0 && count>=limit){
+          stop();
+          bell.currentTime=0; bell.play();
+          $msg.textContent='تم الوصول إلى الحد.';
+          drawProgress(0);
+          return;
+        }
+        count++; updateLabel(); refreshETA();
+      }
+    }
+    rafId=requestAnimationFrame(loop);
+  }
+
+  function start(){
+    // three-choice prompt only if counter > 0 OR at/over limit
+    if((count>0) || (limit>0 && count>=limit)){
+      const overlay=document.createElement('div'); overlay.className='ov';
+      const box=document.createElement('div'); box.className='box';
+      box.innerHTML='<p>بدء العدّ: هل تريد المتابعة؟</p>';
+      const b1=document.createElement('button'); b1.className='btn'; b1.textContent='تصفير والبدء من جديد';
+      const b2=document.createElement('button'); b2.className='btn'; b2.textContent='متابعة بدون حد';
+      const b3=document.createElement('button'); b3.className='btn'; b3.textContent='إلغاء';
+      box.append(b1,b2,b3); overlay.appendChild(box); document.body.appendChild(overlay);
+
+      b1.onclick=()=>{ document.body.removeChild(overlay); stop(); count=0; remainderMs=0; lastAccountedMs=null; updateLabel(); $limit.value=String(limit); onLimitInput(); begin(); };
+      b2.onclick=()=>{ document.body.removeChild(overlay); limit=0; $limit.value='0'; onLimitInput(); begin(); };
+      b3.onclick=()=>{ document.body.removeChild(overlay); };
       return;
     }
-    count++;
-    updateLabel();
-    refreshETA();
-  }, intervalSec*1000);
-}
+    begin();
+  }
+  function begin(){
+    if(running) return;
+    intervalSec=Math.min(10,Math.max(1, parseInt($interval.value||'1',10)));
+    running=true; $start.classList.add('active'); $msg.textContent='';
+    lastAccountedMs=Date.now(); refreshETA(); if(!rafId) rafId=requestAnimationFrame(loop);
+  }
+  function stop(){ running=false; $start.classList.remove('active'); }
 
-function stop(){
-  running=false;
-  $start.classList.remove("active");
-  clearInterval(intervalId);
-}
+  /* ---------- Manual & limit controls ---------- */
+  $manualPlus.onclick=()=>{ if(limit>0 && count>=limit){ bell.currentTime=0; bell.play(); $msg.textContent='تم الوصول إلى الحد.'; return;} count++; updateLabel(); refreshETA(); };
+  $manualMinus.onclick=()=>{ count=Math.max(0, count-1); updateLabel(); refreshETA(); };
+  $limitPlus.onclick=()=>{ $limit.value=String(Math.min(100, parseInt($limit.value)+1)); onLimitInput(); refreshETA(); };
+  $limitMinus.onclick=()=>{ $limit.value=String(Math.max(0, parseInt($limit.value)-1)); onLimitInput(); refreshETA(); };
 
-$start.onclick=start;
-$stop.onclick=stop;
-$limit.oninput=()=>{limit=parseInt($limit.value);updateLabel();refreshETA();};
-$interval.onchange=()=>{intervalSec=parseInt($interval.value);refreshETA();};
-document.getElementById("limitPlus").onclick=()=>{$limit.value=Math.min(100,parseInt($limit.value)+1);$limit.oninput();};
-document.getElementById("limitMinus").onclick=()=>{$limit.value=Math.max(0,parseInt($limit.value)-1);$limit.oninput();};
-document.getElementById("plusBtn").onclick=()=>{if(limit>0&&count>=limit){audio.play();alert("تم الوصول إلى الحد!");return;}count++;updateLabel();refreshETA();};
-document.getElementById("minusBtn").onclick=()=>{count=Math.max(0,count-1);updateLabel();refreshETA();};
+  /* ---------- Events ---------- */
+  $interval.onchange=()=>{ intervalSec=parseInt($interval.value,10); refreshETA(); };
+  $limit.oninput=()=>{ onLimitInput(); refreshETA(); };
+  $start.onclick=start; $stop.onclick=stop;
 
-updateLabel();
-</script>
+  /* ---------- Init ---------- */
+  $interval.value='1'; $limit.value='0'; onLimitInput(); updateLabel(); drawProgress(0); renderPresets();
+  </script>
 </body>
 </html>
