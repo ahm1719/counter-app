@@ -19,7 +19,7 @@
     .pill{border:1px solid #3a4150}
 
     /* counter circle */
-    .counter-wrap{display:grid;place-items:center;margin:10px 0 6px}
+    .counter-wrap{display:grid;place-items:center;margin:10px 0 6px;position:relative}
     canvas{width:150px;height:150px}
     .count-number{position:absolute;font-size:42px;font-weight:800;user-select:none}
 
@@ -29,6 +29,8 @@
     .limit{margin-top:10px;padding:10px;border-radius:12px;background:#202530;display:flex;align-items:center;gap:10px;justify-content:center}
     .limit label{color:var(--muted)}
     input[type=range]{width:220px}
+
+    /* interval dropdown (baseline style) */
     select{background:#2a303a;color:var(--ink);border:1px solid #3a4150;border-radius:8px;padding:6px 10px}
 
     .eta{margin-top:8px;text-align:center;color:var(--muted);font-size:13px}
@@ -44,7 +46,7 @@
   <main class="app">
     <h1>العداد الذكي للأذكار</h1>
 
-    <!-- Presets row (includes built-ins + user presets) -->
+    <!-- Presets row (built-in + user) -->
     <div class="row" id="presetRow" style="justify-content:center;margin-bottom:8px"></div>
     <div class="row" style="justify-content:center;margin-bottom:8px">
       <button class="btn pill" id="addPresetBtn">إضافة</button>
@@ -52,7 +54,7 @@
     </div>
 
     <!-- Counter + ring -->
-    <div class="counter-wrap" style="position:relative">
+    <div class="counter-wrap">
       <canvas id="ring" width="220" height="220" aria-hidden="true"></canvas>
       <div class="count-number" id="count">0</div>
     </div>
@@ -126,7 +128,7 @@
   function saveUserPresets(list){ try{ localStorage.setItem(LS_PRESETS, JSON.stringify(list)); }catch{} }
   function renderPresets(){
     const row=$('#presetRow'); row.innerHTML='';
-    [...BUILT_INS, ...loadUserPresets()].forEach((p,idx)=>{
+    [...BUILT_INS, ...loadUserPresets()].forEach((p)=>{
       const b=document.createElement('button');
       b.className='btn pill';
       b.textContent=p.label.length>22? p.label.slice(0,22)+'…' : p.label;
@@ -188,13 +190,14 @@
     $limitLabel.textContent = `(الحد = ${limit===0?'بدون حد':limit})`;
   }
 
-  /* ---------- Start/Stop loop (RAF, no extra threads) ---------- */
+  /* ---------- Start/Stop loop (RAF) ---------- */
   function loop(){
     if(!running){ rafId=null; return; }
     const now=Date.now();
     if(lastAccountedMs==null) lastAccountedMs=now;
     const elapsed=now - lastAccountedMs + remainderMs;
     const stepMs=intervalSec*1000;
+
     // ring fill 0..1
     drawProgress( Math.min(1, (elapsed%stepMs)/stepMs) );
 
