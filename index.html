@@ -3,261 +3,531 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>العداد الذكي للأذكار</title>
+  <title>العداد</title>
   <style>
-    :root{--bg:#0b0c10;--card:#1f232b;--ink:#e6edf3;--muted:#9aa4b2;--accent:#2d6cdf;--accent2:#3ea6ff}
+    :root { --bg:#0b0c10; --card:#1f232b; --text:#e6edf3; --muted:#9aa4b2; --track:#2e3440; --ring:#3ea6ff }
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial}
-    .app{width:min(680px,94vw);margin:24px auto;padding:18px;background:var(--card);border-radius:16px}
-    h1{margin:0 0 12px;text-align:center;font-size:20px}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;display:grid;place-items:center}
+    .app{width:min(560px,92vw);padding:20px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .title{margin:0 0 12px;font-weight:700;letter-spacing:.2px;font-size:clamp(18px,2.6vw,22px);text-align:center}
 
-    .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-    .btn{appearance:none;border:0;border-radius:10px;padding:10px 14px;background:#2b313c;color:var(--ink);cursor:pointer;font-weight:700}
-    .btn.primary{background:#213445}
-    .btn.active{outline:2px solid var(--accent2)}
-    .btn:active{transform:translateY(1px)}
-    .pill{border:1px solid #3a4150}
+    .ring-wrap{position:relative;width:220px;height:220px;margin:6px auto 8px}
+    .count{position:absolute;inset:0;display:grid;place-items:center;font-size:48px;font-weight:800}
+    .eta{margin:-2px auto 10px;text-align:center;font-size:14px;color:var(--muted)}
 
-    /* counter circle */
-    .counter-wrap{display:grid;place-items:center;margin:10px 0 6px;position:relative}
-    canvas{width:150px;height:150px}
-    .count-number{position:absolute;font-size:42px;font-weight:800;user-select:none}
+    /* Side manual buttons (counter +/-) */
+    .side-btn{
+      position:absolute; top:50%; transform:translateY(-50%);
+      width:44px; height:44px; border-radius:50%;
+      border:none; background:#2b313c; color:#e6edf3; cursor:pointer;
+      font-size:22px; line-height:44px; text-align:center;
+      box-shadow:0 2px 6px rgba(0,0,0,.35);
+      user-select:none;
+    }
+    .side-btn:active{transform:translateY(-50%) scale(.98)}
+    .side-btn.left{left:-8px}
+    .side-btn.right{right:-8px}
 
-    .center-row{display:flex;gap:8px;justify-content:center;align-items:center;margin:6px 0}
+    .controls{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 8px}
+    .controls.preset{grid-template-columns:1fr;gap:10px}
+    button{appearance:none;border:0;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:600;background:#2b313c;color:var(--text);transition:transform .04s ease,background .2s ease}
+    button:active{transform:translateY(1px)}
+    .start{background:#213445}.stop{background:#402b2b}.reset{background:#2b3b2c}
+    .preset-btn{background:#32424c; display:flex; align-items:center; justify-content:space-between; gap:8px}
+    .preset-title{flex:1}
+    .icon-btn{font-size:14px; padding:6px 8px; border-radius:8px; background:#2b313c}
+    .preset-btn.active{outline:2px solid var(--ring);background:#2a3a44}
+    .start.active{outline:2px solid var(--ring);box-shadow:0 0 0 3px rgba(62,166,255,.25) inset}
 
-    /* limit block */
-    .limit{margin-top:10px;padding:10px;border-radius:12px;background:#202530;display:flex;align-items:center;gap:10px;justify-content:center}
-    .limit label{color:var(--muted)}
-    input[type=range]{width:220px}
+    .rows{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+    .field{background:#2b313c;padding:10px 12px;border-radius:12px}
+    .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
 
-    /* interval dropdown (baseline style) */
-    select{background:#2a303a;color:var(--ink);border:1px solid #3a4150;border-radius:8px;padding:6px 10px}
+    .limit-row{display:flex; align-items:center; gap:10px}
+    .limit-row input[type=range]{flex:1}
+    .nudge{width:36px; height:36px; border-radius:8px; border:none; background:#2b313c; color:#e6edf3; cursor:pointer; font-size:18px; line-height:1}
+    .limit-help{margin-top:6px; font-size:12px; color:var(--muted); text-align:center}
 
-    .eta{margin-top:8px;text-align:center;color:var(--muted);font-size:13px}
-    .msg{margin-top:6px;text-align:center;color:#ffd27a;font-size:13px;min-height:18px}
+    /* Stylish interval select */
+    .field select {
+      width:100%;
+      background:#222730;
+      color:#e6edf3;
+      border:1px solid #39414f;
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:15px;
+      appearance:none;
+      -webkit-appearance:none;
+      -moz-appearance:none;
+      cursor:pointer;
+      transition:border-color .2s, box-shadow .2s;
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--ring) 50%),
+        linear-gradient(135deg, var(--ring) 50%, transparent 50%),
+        linear-gradient(#222730,#222730);
+      background-position:
+        calc(100% - 16px) calc(1em + 2px),
+        calc(100% - 11px) calc(1em + 2px),
+        100% 0;
+      background-size:5px 5px, 5px 5px, 2.4rem 100%;
+      background-repeat:no-repeat;
+    }
+    .field select:hover, .field select:focus {
+      border-color:var(--ring);
+      box-shadow:0 0 0 2px rgba(62,166,255,.3);
+      outline:none;
+    }
 
-    /* small modal */
-    .ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:grid;place-items:center;z-index:1000}
-    .box{background:#11151c;color:var(--ink);border:1px solid #324255;border-radius:14px;padding:16px 14px;width:min(92vw,360px);text-align:center}
-    .box .btn{margin:4px}
+    dialog{background:#1f232b;border:none;border-radius:10px;padding:20px;color:#e6edf3}
+    dialog input,dialog select{width:100%;margin-bottom:10px;padding:8px;border-radius:8px;border:1px solid #39414f;background:#222730;color:#e6edf3}
+    menu{display:flex;gap:10px;justify-content:flex-end}
+
+    #err{position:fixed;inset:auto 8px 8px 8px;background:#2b1f20;color:#ffd7d7;border:1px solid #5a2b2e;padding:10px 12px;border-radius:10px;display:none;z-index:9999}
+    #err b{color:#ffb3b3}
+    .nav-link{display:inline-block;margin-top:14px;padding:10px 14px;border-radius:12px;background:#2a3a44;color:#e6edf3;text-decoration:none;font-weight:700}
   </style>
 </head>
 <body>
-  <main class="app">
-    <h1>العداد الذكي للأذكار</h1>
+  <main class="app" role="application" aria-label="عداد بسيط">
+    <h1 class="title">العداد</h1>
 
-    <!-- Presets row (built-in + user) -->
-    <div class="row" id="presetRow" style="justify-content:center;margin-bottom:8px"></div>
-    <div class="row" style="justify-content:center;margin-bottom:8px">
-      <button class="btn pill" id="addPresetBtn">إضافة</button>
-      <button class="btn pill" id="editPresetBtn">تحرير</button>
+    <div class="ring-wrap" aria-live="polite" aria-atomic="true">
+      <svg width="220" height="220" viewBox="0 0 220 220" aria-hidden="true">
+        <circle cx="110" cy="110" r="96" stroke="var(--track)" stroke-width="12" fill="none"></circle>
+        <circle id="prog" cx="110" cy="110" r="96" stroke="var(--ring)" stroke-width="12" fill="none"
+                stroke-linecap="round" transform="rotate(-90 110 110)" stroke-dasharray="603.185" stroke-dashoffset="603.185"></circle>
+      </svg>
+      <div class="count"><span id="count">0</span></div>
+
+      <!-- Manual counter controls -->
+      <button id="counterMinus" class="side-btn left" title="إنقاص العدّ">−</button>
+      <button id="counterPlus"  class="side-btn right" title="زيادة العدّ">+</button>
     </div>
 
-    <!-- Counter + ring -->
-    <div class="counter-wrap">
-      <canvas id="ring" width="220" height="220" aria-hidden="true"></canvas>
-      <div class="count-number" id="count">0</div>
+    <div class="eta">الوقت المتبقي: <span id="etaText">—</span></div>
+
+    <div class="controls">
+      <button class="start" id="startBtn">بدء</button>
+      <button class="stop" id="stopBtn">إيقاف</button>
+      <button class="reset" id="resetBtn">تصـفير</button>
     </div>
 
-    <!-- manual - / start / stop / +  -->
-    <div class="center-row">
-      <button class="btn" id="manualMinus">−</button>
-      <button class="btn primary" id="start">ابدأ</button>
-      <button class="btn" id="stop">إيقاف</button>
-      <button class="btn" id="manualPlus">+</button>
+    <div class="rows">
+      <div class="field">
+        <label for="interval">الفاصل بالثواني</label>
+        <select id="interval">
+          <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+          <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="limit">الحد (0 = بدون حد)</label>
+        <div class="limit-row">
+          <button class="nudge" id="limitDown" aria-label="إنقاص الحد">−</button>
+          <input id="limit" type="range" min="0" max="100" step="1" value="0" aria-label="الحد" />
+          <button class="nudge" id="limitUp" aria-label="زيادة الحد">+</button>
+        </div>
+        <div class="limit-help">القيمة الحالية: <span id="limitVal">بدون حد</span></div>
+      </div>
     </div>
 
-    <!-- interval -->
-    <div class="center-row">
-      <label for="interval">الفاصل:</label>
-      <select id="interval">
-        <option value="1" selected>1 ثانية</option>
-        <option value="2">2 ثانية</option>
-        <option value="3">3 ثوانٍ</option>
-        <option value="4">4 ثوانٍ</option>
-        <option value="5">5 ثوانٍ</option>
-        <option value="6">6 ثوانٍ</option>
-        <option value="7">7 ثوانٍ</option>
-        <option value="8">8 ثوانٍ</option>
-        <option value="9">9 ثوانٍ</option>
-        <option value="10">10 ثوانٍ</option>
-      </select>
+    <!-- Custom presets -->
+    <div class="controls preset" id="customPresets"></div>
+    <button class="preset-btn" id="addPresetBtn">إضافة</button>
+
+    <!-- Built-in presets -->
+    <div class="controls preset" style="margin-top:12px">
+      <button class="preset-btn" id="presetA"><span class="preset-title">سبحان الله و بحمده</span></button>
+      <button class="preset-btn" id="preset1"><span class="preset-title">لا إله إلا أنت سبحانك إني كنت من الظالمين</span></button>
+      <button class="preset-btn" id="preset2"><span class="preset-title">لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير</span></button>
     </div>
 
-    <!-- limit slider + +/- -->
-    <div class="limit">
-      <label id="limitLabel">(الحد = بدون حد)</label>
-      <button class="btn" id="limitMinus">−</button>
-      <input type="range" id="limit" min="0" max="100" value="0" />
-      <button class="btn" id="limitPlus">+</button>
-    </div>
-
-    <div class="eta" id="eta"></div>
-    <div class="msg" id="msg"></div>
-
-    <div class="row" style="justify-content:center;margin-top:10px">
-      <a class="btn pill" href="adhkar.html">أذكار الصباح والمساء</a>
+    <div style="display:flex;justify-content:center">
+      <a class="nav-link" href="adhkar.html">أذكار الصباح والمساء</a>
     </div>
   </main>
 
+  <!-- Add/Edit Custom Preset Dialog -->
+  <dialog id="cpDialog">
+    <form method="dialog" id="cpForm">
+      <label>النص
+        <input id="cpLabel" type="text" required>
+      </label>
+      <label>الفاصل
+        <select id="cpInterval"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select>
+      </label>
+      <label>الحد (0 = بدون حد)
+        <input id="cpLimit" type="range" min="0" max="100" step="1" value="0">
+        <div class="limit-help">القيمة: <span id="cpLimitVal">بدون حد</span></div>
+      </label>
+      <menu>
+        <button id="cpCancel">إلغاء</button>
+        <button id="cpSave">حفظ</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div id="err"></div>
+
   <script>
-  'use strict';
+    'use strict';
 
-  /* ---------- State ---------- */
-  let count=0, limit=0, intervalSec=1;
-  let running=false, rafId=null, lastAccountedMs=null, remainderMs=0;
-  const bell=new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-
-  /* ---------- Elements ---------- */
-  const $=s=>document.querySelector(s);
-  const $count=$('#count'), $eta=$('#eta'), $msg=$('#msg');
-  const $interval=$('#interval'), $limit=$('#limit'), $limitLabel=$('#limitLabel');
-  const $start=$('#start'), $stop=$('#stop');
-  const $manualPlus=$('#manualPlus'), $manualMinus=$('#manualMinus');
-  const $limitPlus=$('#limitPlus'), $limitMinus=$('#limitMinus');
-  const ctx=$('#ring').getContext('2d');
-
-  /* ---------- Presets (built-ins + user) ---------- */
-  const BUILT_INS=[
-    {label:'سبحان الله وبحمده', i:1, l:100},
-    {label:'لا إله إلا أنت سبحانك إني كنت من الظالمين', i:3, l:100},
-    {label:'لا إله إلا الله وحده لا شريك له، له الملك...', i:4, l:100},
-  ];
-  const LS_PRESETS='counter.presets.v3';
-  function loadUserPresets(){ try{ return JSON.parse(localStorage.getItem(LS_PRESETS))||[] }catch{ return [] } }
-  function saveUserPresets(list){ try{ localStorage.setItem(LS_PRESETS, JSON.stringify(list)); }catch{} }
-  function renderPresets(){
-    const row=$('#presetRow'); row.innerHTML='';
-    [...BUILT_INS, ...loadUserPresets()].forEach((p)=>{
-      const b=document.createElement('button');
-      b.className='btn pill';
-      b.textContent=p.label.length>22? p.label.slice(0,22)+'…' : p.label;
-      b.title=p.label;
-      b.onclick=()=> applyPreset(p);
-      row.appendChild(b);
-    });
-  }
-  function applyPreset(p){
-    // No prompt here (to avoid duplicate with Start). Just set values.
-    $interval.value=String(Math.max(1,Math.min(10, p.i||1)));
-    $limit.value=String(Math.max(0,Math.min(100, p.l||0)));
-    onLimitInput();
-    refreshETA();
-  }
-  // Add / Edit preset UIs (simple prompts; baseline kept)
-  $('#addPresetBtn').onclick=()=>{
-    const label=prompt('اسم التلاوة/الذكر (سيظهر كزر):');
-    if(!label) return;
-    const i=parseInt(prompt('الفاصل بالثواني (1–10):','3')||'3',10);
-    const l=parseInt(prompt('الحد (0–100، 0 = بدون حد):','100')||'100',10);
-    const list=loadUserPresets(); list.push({label,i,l}); saveUserPresets(list); renderPresets();
-  };
-  $('#editPresetBtn').onclick=()=>{
-    const list=loadUserPresets(); if(!list.length){ alert('لا توجد إضافات مخصصة.'); return; }
-    const names=list.map((p,idx)=>`${idx+1}. ${p.label}`).join('\n');
-    const sel=parseInt(prompt('اختر رقم العنصر لتعديله:\n'+names)||'0',10);
-    if(!(sel>=1 && sel<=list.length)) return;
-    const it=list[sel-1];
-    const label=prompt('الاسم:', it.label)||it.label;
-    const i=parseInt(prompt('الفاصل (1–10):', String(it.i))||String(it.i),10);
-    const l=parseInt(prompt('الحد (0–100):', String(it.l))||String(it.l),10);
-    list[sel-1]={label,i,l}; saveUserPresets(list); renderPresets();
-  };
-
-  /* ---------- Drawing ---------- */
-  function drawProgress(frac){
-    const w=220,h=220, cx=w/2, cy=h/2, r=90;
-    ctx.clearRect(0,0,w,h);
-    // back ring
-    ctx.lineWidth=14; ctx.strokeStyle='#2b3340';
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
-    // front
-    ctx.strokeStyle='#3ea6ff';
-    ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2, -Math.PI/2 + Math.PI*2*frac, false); ctx.stroke();
-  }
-
-  /* ---------- Helpers ---------- */
-  function updateLabel(){ $count.textContent=count; }
-  function refreshETA(){
-    if(limit>0 && count<limit){
-      const remain=limit-count, sec=remain*intervalSec;
-      const m=Math.floor(sec/60), s=sec%60;
-      $eta.textContent=`الوقت المتبقي التقريبي: ${m} دقيقة و ${s} ثانية`;
-    }else{$eta.textContent='';}
-  }
-  function onLimitInput(){
-    limit=parseInt($limit.value||'0',10);
-    $limitLabel.textContent = `(الحد = ${limit===0?'بدون حد':limit})`;
-  }
-
-  /* ---------- Start/Stop loop (RAF) ---------- */
-  function loop(){
-    if(!running){ rafId=null; return; }
-    const now=Date.now();
-    if(lastAccountedMs==null) lastAccountedMs=now;
-    const elapsed=now - lastAccountedMs + remainderMs;
-    const stepMs=intervalSec*1000;
-
-    // ring fill 0..1
-    drawProgress( Math.min(1, (elapsed%stepMs)/stepMs) );
-
-    if(elapsed>=stepMs){
-      const steps=Math.floor(elapsed/stepMs);
-      lastAccountedMs=now;
-      remainderMs=elapsed - steps*stepMs;
-      for(let k=0;k<steps;k++){
-        if(limit>0 && count>=limit){
-          stop();
-          bell.currentTime=0; bell.play();
-          $msg.textContent='تم الوصول إلى الحد.';
-          drawProgress(0);
-          return;
+    /* --------- Audio: beep on limit (robust iOS priming) --------- */
+    let audioCtx = null;
+    function ensureAudio(){
+      try{
+        if(!audioCtx){
+          const C = window.AudioContext || window.webkitAudioContext;
+          if(C){ audioCtx = new C(); }
         }
-        count++; updateLabel(); refreshETA();
+        if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      }catch{}
+    }
+    function playLimitSound(){
+      ensureAudio();
+      if(!audioCtx) return;
+      try{
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880; // beep
+        gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.24);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.26);
+      }catch{}
+    }
+    ['click','touchstart'].forEach(ev => document.addEventListener(ev, ensureAudio, {once:true}));
+
+    /* ---------------- Error banner ---------------- */
+    (function(){
+      const $e = document.getElementById('err');
+      window.addEventListener('error', (ev)=>{
+        if(!$e) return;
+        $e.style.display='block';
+        $e.innerHTML = '<b>خطأ في السكربت:</b> ' + (ev.message||'') +
+                       (ev.filename? ' <small>(' + ev.filename.split('/').pop() + ':' + ev.lineno + ')</small>' : '');
+        console.error(ev.error||ev.message);
+      });
+    })();
+
+    /* ---------------- State (defaults: interval=1, limit=0) ---------------- */
+    let running=false, count=0, intervalSec=1, limit=0, lastAccountedMs=null, remainderMs=0;
+
+    /* ---------------- Elements ---------------- */
+    const $count = document.getElementById('count');
+    const $prog = document.getElementById('prog');
+    const $interval = document.getElementById('interval');
+    const $limit = document.getElementById('limit');
+    const $limitVal = document.getElementById('limitVal');
+    const $limitDown = document.getElementById('limitDown');
+    const $limitUp = document.getElementById('limitUp');
+    const $start = document.getElementById('startBtn');
+    const $stop = document.getElementById('stopBtn');
+    const $reset = document.getElementById('resetBtn');
+    const $presetA = document.getElementById('presetA');
+    const $preset1 = document.getElementById('preset1');
+    const $preset2 = document.getElementById('preset2');
+    const $eta = document.getElementById('etaText');
+    const customWrap = document.getElementById('customPresets');
+    const $counterPlus = document.getElementById('counterPlus');
+    const $counterMinus = document.getElementById('counterMinus');
+
+    /* ---------------- Ring helpers ---------------- */
+    const C = 2*Math.PI*96; $prog.setAttribute('stroke-dasharray', String(C));
+    function drawProgress(f){ const o=C*(1-Math.max(0,Math.min(1,f))); $prog.setAttribute('stroke-dashoffset', String(o)); }
+    function updateLabel(){ $count.textContent = String(count); }
+
+    /* ---------------- ETA helpers ---------------- */
+    function formatDuration(ms){
+      if(ms==null) return 'بدون حد';
+      let total=Math.max(0,Math.round(ms/1000));
+      const h=Math.floor(total/3600); total%=3600;
+      const m=Math.floor(total/60); const s=total%60;
+      if(h>0) return `${h} س ${m} د`;
+      if(m>0 && s===0) return `${m} د`;
+      if(m>0) return `${m} د ${s} ث`;
+      return `${s} ث`;
+    }
+    function computeRemainingMs(){
+      if (limit <= 0) return null;
+      const iv = intervalSec * 1000;
+      const remainingTicks = Math.max(0, limit - count);
+      let ms = remainingTicks * iv - remainderMs;
+      return Math.max(0, ms);
+    }
+    function refreshETA(){ const ms=computeRemainingMs(); $eta.textContent = formatDuration(ms); }
+
+    /* ---------------- Main loop ---------------- */
+    let rafId=null;
+    function loop(){
+      if(!running){ rafId=null; return; }
+      const n=Date.now(); if(lastAccountedMs==null) lastAccountedMs=n;
+      let d=n-lastAccountedMs; if(d<0) d=0; lastAccountedMs=n;
+
+      const iv=intervalSec*1000; remainderMs+=d;
+      const t=Math.floor(remainderMs/iv); remainderMs%=iv;
+
+      if(t>0){ increment(t, /*manual*/ false); }
+      drawProgress(remainderMs/iv);
+      refreshETA();
+      rafId=requestAnimationFrame(loop);
+    }
+
+    /* ---------------- Increment / Stop / Reset helpers ---------------- */
+    function atLimit(){
+      if(limit>0 && count>=limit){
+        running=false; remainderMs=0; drawProgress(0); updateLabel(); refreshETA();
+        $start.classList.remove('active');
+        if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+        playLimitSound();
+        alert(`تم الوصول إلى الحد: ${limit}`);
+        return true;
       }
+      return false;
     }
-    rafId=requestAnimationFrame(loop);
-  }
 
-  function start(){
-    // three-choice prompt only if counter > 0 OR at/over limit
-    if((count>0) || (limit>0 && count>=limit)){
-      const overlay=document.createElement('div'); overlay.className='ov';
-      const box=document.createElement('div'); box.className='box';
-      box.innerHTML='<p>بدء العدّ: هل تريد المتابعة؟</p>';
-      const b1=document.createElement('button'); b1.className='btn'; b1.textContent='تصفير والبدء من جديد';
-      const b2=document.createElement('button'); b2.className='btn'; b2.textContent='متابعة بدون حد';
-      const b3=document.createElement('button'); b3.className='btn'; b3.textContent='إلغاء';
-      box.append(b1,b2,b3); overlay.appendChild(box); document.body.appendChild(overlay);
-
-      b1.onclick=()=>{ document.body.removeChild(overlay); stop(); count=0; remainderMs=0; lastAccountedMs=null; updateLabel(); $limit.value=String(limit); onLimitInput(); begin(); };
-      b2.onclick=()=>{ document.body.removeChild(overlay); limit=0; $limit.value='0'; onLimitInput(); begin(); };
-      b3.onclick=()=>{ document.body.removeChild(overlay); };
-      return;
+    function increment(n=1){
+      if(n<=0) return;
+      if(limit>0){
+        const remaining = Math.max(0, limit - count);
+        const applied = Math.min(remaining, n);
+        count += applied;
+      }else{
+        count += n;
+      }
+      updateLabel();
+      atLimit();
     }
-    begin();
-  }
-  function begin(){
-    if(running) return;
-    intervalSec=Math.min(10,Math.max(1, parseInt($interval.value||'1',10)));
-    running=true; $start.classList.add('active'); $msg.textContent='';
-    lastAccountedMs=Date.now(); refreshETA(); if(!rafId) rafId=requestAnimationFrame(loop);
-  }
-  function stop(){ running=false; $start.classList.remove('active'); }
 
-  /* ---------- Manual & limit controls ---------- */
-  $manualPlus.onclick=()=>{ if(limit>0 && count>=limit){ bell.currentTime=0; bell.play(); $msg.textContent='تم الوصول إلى الحد.'; return;} count++; updateLabel(); refreshETA(); };
-  $manualMinus.onclick=()=>{ count=Math.max(0, count-1); updateLabel(); refreshETA(); };
-  $limitPlus.onclick=()=>{ $limit.value=String(Math.min(100, parseInt($limit.value)+1)); onLimitInput(); refreshETA(); };
-  $limitMinus.onclick=()=>{ $limit.value=String(Math.max(0, parseInt($limit.value)-1)); onLimitInput(); refreshETA(); };
+    function decrement(n=1){
+      if(n<=0) return;
+      count = Math.max(0, count - n);
+      updateLabel();
+      refreshETA();
+    }
 
-  /* ---------- Events ---------- */
-  $interval.onchange=()=>{ intervalSec=parseInt($interval.value,10); refreshETA(); };
-  $limit.oninput=()=>{ onLimitInput(); refreshETA(); };
-  $start.onclick=start; $stop.onclick=stop;
+    function stop(){ running=false; if(rafId) cancelAnimationFrame(rafId); rafId=null; $start.classList.remove('active'); lastAccountedMs=null; }
+    function reset(){ stop(); count=0; remainderMs=0; lastAccountedMs=null; updateLabel(); drawProgress(0); refreshETA(); }
 
-  /* ---------- Init ---------- */
-  $interval.value='1'; $limit.value='0'; onLimitInput(); updateLabel(); drawProgress(0); renderPresets();
+    /* ---------------- Reusable modal ---------------- */
+    function showModal(buttons, message){
+      const overlay=document.createElement('div');
+      overlay.style.position='fixed'; overlay.style.inset='0';
+      overlay.style.background='rgba(0,0,0,0.6)'; overlay.style.display='grid';
+      overlay.style.placeItems='center'; overlay.style.zIndex='10000';
+
+      const box=document.createElement('div');
+      box.style.background='#1f232b'; box.style.padding='20px';
+      box.style.borderRadius='12px'; box.style.textAlign='center';
+      box.style.color='white'; box.style.width='min(340px,90vw)';
+      box.innerHTML=`<p style="margin-bottom:14px;font-size:15px">${message||''}</p>`;
+
+      buttons.forEach(b=>{
+        const el=document.createElement('button');
+        el.textContent=b.text;
+        Object.assign(el.style,{margin:'6px',padding:'10px 12px',border:'0',borderRadius:'8px',background:b.style||'#32424c',color:'white',cursor:'pointer',width:'100%'});
+        el.onclick=()=>{ try{ document.body.removeChild(overlay);}catch{}; b.action&&b.action(); };
+        box.appendChild(el);
+      });
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+    }
+
+    /* ---------------- Controls ---------------- */
+    function start(){
+      ensureAudio();
+      if(running) return;
+      if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+
+      intervalSec = Math.min(10, Math.max(1, parseInt($interval.value || '1', 10)));
+      limit = Math.max(0, parseInt($limit.value || '0', 10) || 0);
+
+      // A) limit already reached -> Reset / Continue without limit / Cancel
+      if(limit>0 && count>=limit){
+        showModal([
+          {text:'تصفير والبدء من جديد', style:'#213445', action:()=>{
+            reset(); running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA(); rafId=requestAnimationFrame(loop);
+          }},
+          {text:'متابعة بدون حد', style:'#32424c', action:()=>{
+            limit=0; $limit.value='0'; updateLimitLabel(); refreshETA();
+            running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); rafId=requestAnimationFrame(loop);
+          }},
+          {text:'إلغاء', style:'#402b2b', action:()=>{}}
+        ], 'لقد وصلت إلى الحد المحدد');
+        return;
+      }
+
+      // B) count > 0 (not at limit) -> Reset / Continue / Cancel
+      if(count>0){
+        showModal([
+          {text:'تصفير والبدء من جديد', style:'#213445', action:()=>{
+            reset(); running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA(); rafId=requestAnimationFrame(loop);
+          }},
+          {text:'متابعة', style:'#32424c', action:()=>{
+            running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA(); rafId=requestAnimationFrame(loop);
+          }},
+          {text:'إلغاء', style:'#402b2b', action:()=>{}}
+        ], 'بدء العداد؟');
+        return;
+      }
+
+      // Normal start
+      running=true; $start.classList.add('active'); lastAccountedMs=Date.now(); refreshETA();
+      rafId=requestAnimationFrame(loop);
+    }
+
+    $start.addEventListener('click', start);
+    $stop.addEventListener('click', ()=>{ ensureAudio(); stop(); });
+    $reset.addEventListener('click', ()=>{ ensureAudio(); reset(); });
+
+    // Manual counter +/- (around the ring)
+    $counterPlus.addEventListener('click', ()=>{ ensureAudio(); increment(1); refreshETA(); });
+    $counterMinus.addEventListener('click', ()=>{ ensureAudio(); decrement(1); });
+
+    // Limit slider + precise nudges
+    function clamp(v){ return Math.min(100, Math.max(0, v|0)); }
+    function updateLimitLabel(){
+      const v = parseInt($limit.value,10)||0;
+      $limitVal.textContent = (v===0 ? 'بدون حد' : String(v));
+    }
+    function applyLimitFromUI(){
+      limit = Math.max(0, parseInt($limit.value||'0', 10) || 0);
+      if(limit>0 && count>=limit) stop();
+      refreshETA();
+    }
+    $limit.addEventListener('input', updateLimitLabel);
+    $limit.addEventListener('change', applyLimitFromUI);
+    $limitDown.addEventListener('click', ()=>{ ensureAudio(); $limit.value = String(clamp((parseInt($limit.value,10)||0) - 1)); updateLimitLabel(); applyLimitFromUI(); });
+    $limitUp.addEventListener('click',   ()=>{ ensureAudio(); $limit.value = String(clamp((parseInt($limit.value,10)||0) + 1)); updateLimitLabel(); applyLimitFromUI(); });
+
+    // Interval select
+    $interval.addEventListener('change', ()=>{ intervalSec=Math.min(10,Math.max(1,parseInt($interval.value||'1',10))); refreshETA(); });
+
+    // Presets handling (no prompt on selection)
+    let selectedPreset=null;
+    function clearPresetHighlights(){
+      document.querySelectorAll('#customPresets .preset-btn, #presetA, #preset1, #preset2').forEach(b=>b.classList.remove('active'));
+    }
+    function selectPreset(b){ clearPresetHighlights(); b.classList.add('active'); selectedPreset=b; }
+    function deselectPreset(b){ b.classList.remove('active'); if(selectedPreset===b) selectedPreset=null; }
+    function onPresetClick(b, iv, lim){
+      ensureAudio();
+      if(selectedPreset===b){ deselectPreset(b); return; }
+      $interval.value=String(iv); intervalSec=iv;
+      $limit.value=String(clamp(lim)); updateLimitLabel(); limit=clamp(lim);
+      selectPreset(b);
+      refreshETA();
+    }
+    document.getElementById('presetA').addEventListener('click', ()=>onPresetClick(presetA,1,100));
+    document.getElementById('preset1').addEventListener('click', ()=>onPresetClick(preset1,3,100));
+    document.getElementById('preset2').addEventListener('click', ()=>onPresetClick(preset2,4,100));
+
+    // Custom presets (localStorage) with EDIT support
+    const LS_KEY='counter.customPresets.v1';
+    function loadCustomPresets(){ try{ return JSON.parse(localStorage.getItem(LS_KEY))||[] } catch { return [] } }
+    function saveCustomPresets(l){ localStorage.setItem(LS_KEY, JSON.stringify(l)); }
+    let customPresets=loadCustomPresets();
+
+    function renderCustomPresets(){
+      customWrap.innerHTML='';
+      customPresets.forEach(p=>{
+        const btn=document.createElement('button');
+        btn.type='button'; btn.className='preset-btn';
+
+        const title=document.createElement('span');
+        title.className='preset-title';
+        title.textContent=p.label;
+
+        const edit=document.createElement('button');
+        edit.type='button'; edit.className='icon-btn'; edit.title='تعديل'; edit.textContent='✏️';
+        edit.addEventListener('click', (e)=>{ e.stopPropagation(); openPresetDialog('edit', p); });
+
+        const del=document.createElement('button');
+        del.type='button'; del.className='icon-btn'; del.title='حذف'; del.textContent='🗑';
+        del.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          if(confirm('حذف هذا البريمج؟')){
+            customPresets = customPresets.filter(x=>x.id!==p.id);
+            saveCustomPresets(customPresets);
+            renderCustomPresets();
+          }
+        });
+
+        btn.addEventListener('click', ()=>onPresetClick(btn, p.interval, p.limit));
+
+        btn.appendChild(title);
+        const right=document.createElement('span');
+        right.style.display='flex'; right.style.gap='6px';
+        right.appendChild(edit); right.appendChild(del);
+        btn.appendChild(right);
+
+        customWrap.appendChild(btn);
+      });
+    }
+
+    // Add/Edit dialog
+    const addBtn=document.getElementById('addPresetBtn');
+    const dlg=document.getElementById('cpDialog');
+    const cpForm=document.getElementById('cpForm');
+    const saveBtn=document.getElementById('cpSave');
+    const cancelBtn=document.getElementById('cpCancel');
+    const cpLabel=document.getElementById('cpLabel');
+    const cpInterval=document.getElementById('cpInterval');
+    const cpLimit=document.getElementById('cpLimit');
+    const cpLimitVal=document.getElementById('cpLimitVal');
+
+    let editingId=null;
+
+    function openPresetDialog(mode, preset){
+      editingId = (mode==='edit' && preset) ? preset.id : null;
+      cpLabel.value = preset ? preset.label : '';
+      cpInterval.value = String(preset ? preset.interval : (parseInt($interval.value,10)||1));
+      cpLimit.value = String(preset ? Math.min(100, Math.max(0, preset.limit)) : Math.min(100, Math.max(0, parseInt($limit.value,10)||0)));
+      cpLimitVal.textContent = (parseInt(cpLimit.value,10)===0 ? 'بدون حد' : cpLimit.value);
+      try { dlg.showModal(); } catch { dlg.setAttribute('open',''); }
+    }
+
+    cpLimit.addEventListener('input', ()=>{ cpLimitVal.textContent = (parseInt(cpLimit.value,10)===0 ? 'بدون حد' : cpLimit.value); });
+
+    addBtn.addEventListener('click', ()=> openPresetDialog('add'));
+
+    cancelBtn.addEventListener('click', (e)=>{ e.preventDefault(); try{ dlg.close(); }catch{ dlg.removeAttribute('open'); } });
+
+    saveBtn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      if(!cpLabel.value.trim()){ alert('يرجى إدخال النص'); return; }
+      const iv=Math.min(10,Math.max(1,parseInt(cpInterval.value,10)||1));
+      const lim=Math.min(100,Math.max(0,parseInt(cpLimit.value,10)||0));
+      if(editingId==null){
+        customPresets.push({ id: Date.now(), label: cpLabel.value.trim(), interval: iv, limit: lim });
+      } else {
+        customPresets = customPresets.map(p => p.id===editingId ? {...p, label:cpLabel.value.trim(), interval:iv, limit:lim} : p);
+      }
+      saveCustomPresets(customPresets);
+      renderCustomPresets();
+      try{ dlg.close(); }catch{ dlg.removeAttribute('open'); }
+    });
+
+    // Visibility resume
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible' && running && !rafId){ rafId=requestAnimationFrame(loop); } });
+
+    // Init (interval=1, limit=0)
+    (function init(){
+      updateLabel();
+      drawProgress(0);
+      $interval.value='1';
+      $limit.value='0'; updateLimitLabel();
+      intervalSec = 1; limit = 0;
+      renderCustomPresets();
+      refreshETA();
+    })();
   </script>
 </body>
 </html>
