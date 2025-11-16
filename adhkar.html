@@ -22,6 +22,12 @@
     .pill{border:1px solid #3a4150}
     .footer{margin-top:14px;text-align:center}
 
+    /* Selected mode highlight (ADDED) */
+    .btn.pill.selected{
+      outline:2px solid var(--ring);
+      box-shadow:0 0 0 3px rgba(62,166,255,.25) inset;
+    }
+
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;z-index:999}
     .card{position:fixed;inset:12px;display:none;z-index:1000;background:#101319;border:1px solid #2a313f;border-radius:16px;padding:18px 16px;overflow:auto}
     .card-header{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:8px}
@@ -55,8 +61,8 @@
     <p class="desc">اختر الوقت، ثم ابدأ. ستظهر الأذكار بطاقةً كاملة؛ اضغط داخل البطاقة للانتقال إلى التالي.</p>
 
     <div class="row" style="justify-content:center;margin-bottom:12px">
-      <button class="btn pill" id="modeMorning">أذكار الصباح</button>
-      <button class="btn pill" id="modeEvening">أذكار المساء</button>
+      <button class="btn pill" id="modeMorning" aria-pressed="true">أذكار الصباح</button>
+      <button class="btn pill" id="modeEvening" aria-pressed="false">أذكار المساء</button>
     </div>
 
     <div class="row" style="justify-content:center">
@@ -124,7 +130,6 @@
       { title:'اللهم ما أصبح بي من نعمة...', repeat:1, text:'اللهم ما أصبحَ بي من نعمةٍ أو بأحدٍ من خلقِك فمنك وحدك لا شريك لك، فلك الحمد ولك الشكر.', ref:'مرة واحدة' },
       { title:'بسم الله الذي لا يضر...', repeat:3, text:'بسمِ اللهِ الذي لا يضرُّ مع اسمِه شيءٌ في الأرضِ ولا في السماءِ وهو السميعُ العليم.', ref:'ثلاث مرات' },
       { title:'رضيت بالله ربًّا...', repeat:3, text:'رضيتُ بالله ربًّا، وبالإسلام دينًا، وبمحمدٍ ﷺ نبيًّا.', ref:'ثلاث مرات' },
-      /* 12/14 */
       { title:'سبحان الله وبحمده (100 مرة صباحًا)', repeat:100, text:'سبحان الله وبحمده.', ref:'مائة مرة' },
       { title:'ربنا آتنا في الدنيا حسنة...', repeat:1, text:'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ.', ref:'مرة واحدة' },
       { title:'سيد الاستغفار', repeat:1, text:'اللهم أنت ربي لا إله إلا أنت، خلقتني وأنا عبدك، وأنا على عهدك ووعدك ما استطعت، أعوذ بك من شر ما صنعت، أبوء لك بنعمتك عليَّ، وأبوء بذنبي، فاغفر لي؛ فإنه لا يغفر الذنوب إلا أنت.', ref:'مرة واحدة' },
@@ -174,14 +179,27 @@
     let i = 0;
     let rep = 1;
 
+    // ---- UPDATED setMode to visually highlight selection ----
     function setMode(newMode){
       stopAuto();
       mode = newMode;
       list = (mode === 'morning') ? MORNING_LIST : EVENING_LIST;
-      modeMorningBtn.classList.toggle('alt', mode !== 'morning');
-      modeEveningBtn.classList.toggle('alt', mode !== 'evening');
+
+      // inactive button gets .alt, active gets .selected (and removes .alt)
+      const morningActive = (mode === 'morning');
+      modeMorningBtn.classList.toggle('alt', !morningActive);
+      modeEveningBtn.classList.toggle('alt', morningActive);
+
+      modeMorningBtn.classList.toggle('selected', morningActive);
+      modeEveningBtn.classList.toggle('selected', !morningActive);
+
+      // accessibility
+      modeMorningBtn.setAttribute('aria-pressed', morningActive ? 'true' : 'false');
+      modeEveningBtn.setAttribute('aria-pressed', !morningActive ? 'true' : 'false');
+
       i = 0; rep = 1; saveProgress();
     }
+
     function saveProgress(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({mode,i,rep})); }catch{} }
     function loadProgress(){
       try{
@@ -223,7 +241,6 @@
       }
     }
 
-    // السلوك الافتراضي: next يزيد التكرار أو ينتقل للبطاقة التالية عند اكتمال التكرار
     function next(){
       const item=list[i], total=item.repeat||1;
       if(rep<total){ rep++; }
@@ -241,7 +258,6 @@
       saveProgress(); renderCard();
     }
 
-    // المطلوب: عندما total=100 تعمل الأزرار لتغيير البطاقة مباشرة لا التكرار
     function nextButton(){
       const total=(list[i].repeat||1);
       if(total===100){
@@ -265,7 +281,6 @@
     function openCard(){ overlay.style.display='block'; card.style.display='block'; renderCard(); setTimeout(()=>card.focus(),0); }
     function closeCard(){ stopAuto(); overlay.style.display='none'; card.style.display='none'; }
 
-    // رسالة إكمال 100 (تُغلق بالنقر في أي مكان)
     function showDoneMessage(){
       const ov=document.createElement('div');
       ov.className='done-ov';
@@ -277,7 +292,6 @@
       document.body.appendChild(ov);
     }
 
-    // التسبيح التلقائي: 1 ثانية × 100 — عند الاكتمال تعرض رسالة ولا تنتقل تلقائياً
     function startAuto(){
       if(autoTimer) return;
       const total=(list[i].repeat||1);
@@ -289,7 +303,6 @@
           repeatInfo.textContent=`التكرار: ${rep} / ${total}`;
         }else{
           clearInterval(autoTimer); autoTimer=null;
-          // لا انتقال تلقائي — فقط رسالة
           showDoneMessage();
           autoNote.textContent='اكتمل (100/100)';
           autoBtn.textContent='بدء التسبيح التلقائي (1 ثانية × 100)';
@@ -317,24 +330,25 @@
     startBtn.addEventListener('click', openCard);
     closeBtn.addEventListener('click', closeCard);
 
-    // الأزرار تستخدم السلوك الخاص لبطاقة 100
     nextBtn.addEventListener('click', nextButton);
     prevBtn.addEventListener('click', prevButton);
 
-    // النقر داخل البطاقة (بعيدًا عن الأزرار) ما زال يذهب إلى "التالي" الافتراضي
     card.addEventListener('click', (e)=>{
       if (e.target.closest('.auto-wrap, .nav, header, button')) return;
       next();
     });
 
-    // لوحة المفاتيح
     card.addEventListener('keydown', (e)=>{
       if(e.key==='ArrowRight' || e.key==='Enter' || e.key===' '){ e.preventDefault(); nextButton(); }
       if(e.key==='ArrowLeft'){ e.preventDefault(); prevButton(); }
       if(e.key==='Escape'){ e.preventDefault(); closeCard(); }
     });
 
-    (function(){ setMode('morning'); loadProgress(); })();
+    (function(){
+      // default: morning selected
+      setMode('morning');
+      loadProgress(); // will re-apply selection if evening was last used
+    })();
   </script>
 </body>
 </html>
